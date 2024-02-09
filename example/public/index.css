@@ -1,0 +1,19 @@
+@import "primereact/resources/themes/lara-light-indigo/theme.css";
+@import "primereact/resources/primereact.min.css";
+@import "primeicons/primeicons.css";
+
+label,
+input,
+small {
+    display: block;
+}
+
+
+small {
+    font-size: 0.7rem;
+    position: absolute;
+}
+
+button {
+    margin-top: 2rem !important; 
+}

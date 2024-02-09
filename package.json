@@ -1,0 +1,96 @@
+{
+  "name": "gform-react",
+  "version": "1.9.1",
+  "description": "build generic forms with validations for react-based applications",
+  "author": "Tal Maman, Arkady Birko",
+  "license": "MIT",
+  "scripts": {
+    "clean": "rimraf ./dist && rimraf ./native",
+    "build:prod": "rollup -c --environment build:production",
+    "build:dev": "rollup -c --environment build:development",
+    "build": "npm run tscheck && npm run lint && npm run security:check && npm run clean && npm run build:dev && npm run build:prod",
+    "tscheck": "tsc --noEmit",
+    "security:check": "npm audit --production --audit-level high",
+    "lint": "eslint src --ext .ts --ext .tsx",
+    "lint:fix": "eslint src --ext .ts --ext .tsx --fix",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "typings": "dist/index.d.ts",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/index.js",
+      "import": {
+        "production": "./dist/esm/index.js",
+        "development": "./dist/esm/index.development.js"
+      },
+      "default": "./dist/esm/index.js"
+    },
+    "./native": {
+      "require": "./native/dist/cjs/index.js",
+      "import": {
+        "production": "./native/dist/esm/index.js",
+        "development": "./native/dist/esm/index.development.js"
+      },
+      "default": "./native/dist/esm/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "native"
+  ],
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.22.5",
+    "@babel/plugin-transform-runtime": "^7.22.5",
+    "@babel/preset-env": "^7.22.5",
+    "@babel/preset-react": "^7.22.5",
+    "@babel/preset-typescript": "^7.18.6",
+    "@emotion/react": "^11.10.0",
+    "@emotion/styled": "^11.10.0",
+    "@mui/material": "^5.10.2",
+    "@rollup/plugin-babel": "^6.0.3",
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-replace": "^5.0.2",
+    "@rollup/plugin-terser": "^0.4.3",
+    "@types/react": "18.0.26",
+    "@types/react-dom": "18.0.10",
+    "@typescript-eslint/eslint-plugin": "^5.59.5",
+    "@typescript-eslint/parser": "^5.59.5",
+    "eslint": "^8.12.0",
+    "react-native": "0.70.6",
+    "primeicons": "^6.0.1",
+    "primereact": "^8.7.3",
+    "rimraf": "^5.0.1",
+    "rollup": "^3.23.0",
+    "rollup-plugin-copy": "^3.4.0",
+    "rollup-plugin-dts": "^5.3.0",
+    "rollup-plugin-typescript2": "^0.34.1",
+    "typescript": "^5.0.4"
+  },
+  "keywords": [
+    "react",
+    "form",
+    "builder",
+    "generic",
+    "forms",
+    "validation",
+    "typescript",
+    "higher order component",
+    "input"
+  ],
+  "homepage": "https://gform-react.onrender.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/talmaman/gform-react.git"
+  },
+  "bugs": {
+    "url": "https://github.com/talmaman/gform-react/issues"
+  }
+}

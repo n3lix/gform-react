@@ -1,0 +1,15 @@
+{
+    "name": "gform-react/native",
+    "private": true,
+    "types": "./dist/index.d.ts",
+    "main": "./dist/cjs/index.js",
+    "module": "./dist/esm/index.js",
+    "exports": {
+      "require": "./dist/cjs/index.js",
+      "import": {
+        "production": "./dist/esm/index.js",
+        "development": "./dist/esm/index.development.js"
+      },
+      "default": "./dist/esm/index.js"
+    }
+  }
