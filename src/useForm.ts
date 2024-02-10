@@ -9,17 +9,17 @@ import type { GFormState, InitialState } from "./state";
 export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFormState<T>) => JSX.Element | JSX.Element[]), validators: GValidators<T> = {}, optimized = false) => {
     const initialValues = useMemo(() => _buildFormInitialValues<T>(typeof children === 'function' ? children({} as GFormState<T>) : children), [children]);
     const [state, setState] = useState(initialValues.state);
-
+    
     /**
      * handler for validating a form input
      * @param input the input to be validated
      * @param e the event object
      */
-    const _validateInputHandler = (input: GInputState, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
+    const _viHandler = (input: GInputState, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
         if (!input) return;
         const element = e?.target;
 
-        if (typeof window === 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
+        if (typeof window !== 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
             if (!input.checkValidity) input.checkValidity = () => element.checkValidity();
             element.setCustomValidity(''); //reset any previous error (custom)
 
@@ -39,6 +39,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
             //fallback - validate the input for constraint validation manually
             input.checkValidity = () => _createInputChecker(input);
             input.checkValidity();
+
             _dispatchChanges(input, input.formKey);
         }
     };
@@ -69,7 +70,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
         const value = _extractValue(e, unknown);
         const input = _updateInput(key, value);
 
-        _validateInputHandler(input, e);
+        _viHandler(input, e);
     };
 
     /**
@@ -164,5 +165,5 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
 
     };
 
-    return { state, _updateInputHandler, _validateInputHandler, _dispatchChanges, optimized, key: initialValues.key, _createInputChecker };
+    return { state, _updateInputHandler, _viHandler, _dispatchChanges, optimized, key: initialValues.key, _createInputChecker };
 };

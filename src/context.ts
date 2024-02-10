@@ -9,7 +9,7 @@ const gFormContext = createContext<GContext>({
         loading: false
     },
     _updateInputHandler: () => null,
-    _validateInputHandler: () => null,
+    _viHandler: () => null,
     _dispatchChanges: () => null,
     _createInputChecker: () => false,
     optimized: false,

@@ -6,7 +6,7 @@ import { _debounce } from '../helpers';
 import type { GInputState, RNGInputProps } from '.';
 
 export const RNGInput = forwardRef<any, RNGInputProps>(({ formKey, element, type, validatorKey, fetch, fetchDeps = [], defaultValue, value, debounce = 300, ...rest }, ref) => {
-    const { state: { fields }, _updateInputHandler, _validateInputHandler, _dispatchChanges,  _createInputChecker } = useGenericFormContext();
+    const { state: { fields }, _updateInputHandler, _dispatchChanges, _viHandler, _createInputChecker } = useGenericFormContext();
     const inputState = fields[formKey];
 
     const _element = useMemo(() => {
@@ -20,7 +20,7 @@ export const RNGInput = forwardRef<any, RNGInputProps>(({ formKey, element, type
         };
 
         _props.onEndEditing = (e) => {
-            _validateInputHandler(inputState);
+            _viHandler(inputState);
             rest.onEndEditing && rest.onEndEditing(e);
         };
         _props.onChangeText = (e) => {
