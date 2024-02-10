@@ -24,7 +24,7 @@ it only cares about the form and the inputs inside.
 https://gform-react.onrender.com
 
 ## Demo:
-https://codesandbox.io/s/gracious-paper-5xhzqw
+https://codesandbox.io/p/sandbox/gifted-elbakyan-fs5g2c
 
 ## Installation
 npm:
