@@ -5,7 +5,7 @@ import { _debounce } from '../helpers';
 import type { GInputProps, GInputState, GElementProps } from '.';
 
 export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, element, title, type, validatorKey, fetch, fetchDeps = [], optimized, defaultChecked, defaultValue, checked, value, debounce=300, ...rest }, ref) => {
-    const { state: { fields }, _updateInputHandler, _validateInputHandler, _dispatchChanges, optimized: formOptimized } = useGenericFormContext();
+    const { state: { fields }, _updateInputHandler, _dispatchChanges, optimized: formOptimized, _viHandler } = useGenericFormContext();
     const inputState = fields[formKey];
 
     const _element = useMemo(() => {
@@ -28,12 +28,12 @@ export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, elem
 
         if (!formOptimized || !optimized) {
             _props.onBlur = (e) => {
-                _validateInputHandler(inputState, e);
+                _viHandler(inputState, e);
                 rest.onBlur && rest.onBlur(e);
             };
             _props.onInvalid = (e) => {
                 e.preventDefault(); // hide default browser validation tooltip
-                _validateInputHandler(inputState, e);
+                _viHandler(inputState, e);
                 rest.onInvalid && rest.onInvalid(e);
             };
             _props.onChange = (e, unknown?: { value: unknown } | string | number) => {

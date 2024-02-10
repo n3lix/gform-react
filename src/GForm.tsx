@@ -52,7 +52,7 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
     }, ref) => {
         const formRef = useRef<HTMLFormElement | null>(null);
         const values = useForm<T>(children as JSX.Element | JSX.Element[], validators, optimized);
-        const { state, _updateInputHandler, _validateInputHandler, _dispatchChanges, key } = values;
+        const { state, _updateInputHandler, _viHandler, _dispatchChanges, key } = values;
 
         const refHandler = (element: HTMLFormElement | null) => {
             if (ref) {
@@ -108,11 +108,11 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
                     ref={refHandler} 
                     onPaste={_onPaste}
                     onBlur={(e: GChangeEvent<HTMLFormElement>) => {
-                        _validateInputHandler(state.fields[e.target.name], e);
+                        _viHandler(state.fields[e.target.name], e);
                     }}
                     onInvalid={(e: ChangeEvent<HTMLFormElement>) => {
                         e.preventDefault(); // hide default browser validation tooltip
-                        _validateInputHandler(state.fields[e.target.name], e);
+                        _viHandler(state.fields[e.target.name], e);
                     }}
                     onChange={(e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
                         _updateInputHandler(e.target.name, e, unknown);
