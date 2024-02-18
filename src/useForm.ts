@@ -1,15 +1,40 @@
 import { useMemo, useState } from "react";
 
 import { _buildFormInitialValues, _findValidityKey, _checkResult, _extractValue, _debounce } from "./helpers";
+import { GValidator, type GInputValidator, type GValidators } from "./validations";
 import type { GInputState } from "./fields";
-import type { GInputValidator, GValidators } from "./validations";
 import type { GFocusEvent, GInvalidEvent, GChangeEvent, GFormEvent, GDOMElement } from "./form";
 import type { GFormState, InitialState } from "./state";
+import { handlersMap, validityMap } from "./validations/GValidator";
 
 export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFormState<T>) => JSX.Element | JSX.Element[]), validators: GValidators<T> = {}, optimized = false) => {
-    const initialValues = useMemo(() => _buildFormInitialValues<T>(typeof children === 'function' ? children({} as GFormState<T>) : children), [children]);
+    const initialValues = useMemo(() => {
+        const values = _buildFormInitialValues<T>(typeof children === 'function' ? children({} as GFormState<T>) : children);
+        if (__DEV__) {
+            Object.keys(values.state.fields).forEach(key => {
+                const input = values.state.fields[key];
+                const validator = validators[key];
+                if (validator instanceof GValidator) {
+                    const validityKeys = validator.track?.filter(key => validityMap[key]);
+
+                    validityKeys?.forEach(vKey => {
+                        if (typeof input[validityMap[vKey]] === 'undefined') {
+                            console.warn(`[Missing Prop] - the input '${input.formKey}' has registered validator for the violation '${vKey}' but the input hasn't described the constraint '${validityMap[vKey]}'.\nadd '${validityMap[vKey]}' to the input props.\nexample:\n<GInput formKey='${input.formKey}' ${validityMap[vKey]}={...} />`);
+                        }
+                    });
+
+                    Object.entries(validityMap).forEach(([validityKey, constraint]) => {
+                        if (typeof input[constraint] !== 'undefined' && !validator.track?.some(trackKey => validityKey === trackKey)) {
+                            console.warn(`[Missing Validator] - the input '${input.formKey}' has described the constraint '${constraint}' but the input hasn't registered a validator to handle it.\nregister a handler '${handlersMap[constraint]}' for the input validator to handle the '${validityKey}' violation.\nexample:\ncosnt validators = {\n\t${input.formKey}: new GValidator().${handlersMap[constraint]}(...)\n}`);
+                        }
+                    });
+                }
+            });
+        }
+        return values;
+    }, [children]);
     const [state, setState] = useState(initialValues.state);
-    
+
     /**
      * handler for validating a form input
      * @param input the input to be validated
@@ -19,7 +44,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
         if (!input) return;
         const element = e?.target;
 
-        if (typeof window !== 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
+        if (typeof document !== 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
             if (!input.checkValidity) input.checkValidity = () => element.checkValidity();
             element.setCustomValidity(''); //reset any previous error (custom)
 

@@ -1,5 +1,29 @@
 import type { GConstraintValidator, GConstraintValidatorHandler, GCustomValidatorHandler, GCustomValidatorHandlerAsync } from ".";
 
+export let handlersMap: { [key: string]: string };
+export let validityMap: { [key in keyof Partial<ValidityState>]: any };
+
+if (__DEV__) {
+    handlersMap = {
+        minLength: 'withMinLengthMessage',
+        maxLength: 'withMaxLengthMessage',
+        required: 'withRequiredMessage',
+        pattern: 'withPatternMismatchMessage',
+        min: 'withRangeUnderflowMessage',
+        max: 'withRangeOverflowMessage',
+        step: 'withStepMismatchMessage'
+    };
+    validityMap = {
+        tooShort: 'minLength',
+        valueMissing: 'required',
+        tooLong: 'maxLength',
+        patternMismatch: 'pattern',
+        rangeOverflow: 'max',
+        rangeUnderflow: 'min',
+        stepMismatch: 'step'
+    };
+}
+
 /**a class for handling validations for input(s)
  * @example
  * const baseValidator = new GValidator().withRequiredMessage('this field is required');
@@ -13,7 +37,7 @@ export class GValidator<T = any> {
     private _handlers: GCustomValidatorHandler<T>[];
     private _constraintHandlers: GConstraintValidatorHandler[];
     private _asyncHandlers: GCustomValidatorHandlerAsync<T>[];
-    private _track!: string[];
+    track?: (keyof ValidityState)[];
 
     get handlers() {
         return this._handlers;
@@ -31,13 +55,18 @@ export class GValidator<T = any> {
         const baseHandlers = baseValidator?.handlers || [];
         const baseConstraintHandlers = baseValidator?.constraintHandlers || [];
         const baseHandlersAsync = baseValidator?.asyncHandlers || [];
-        
+
         this._handlers = new Array<GCustomValidatorHandler<T>>().concat(baseHandlers);
         this._constraintHandlers = new Array<GConstraintValidatorHandler>().concat(baseConstraintHandlers);
         this._asyncHandlers = new Array<GCustomValidatorHandlerAsync<T>>().concat(baseHandlersAsync);
-        
+
         if (__DEV__) {
-            this._track = [];
+            this.track = [];
+            if (baseValidator?.track) {
+                this.track = this.track.concat(baseValidator.track);
+            }
+        } else {
+            delete this.track;
         }
     }
 
@@ -51,7 +80,7 @@ export class GValidator<T = any> {
         return this.__addConstraintValidationHandler('tooLong', message);
     }
 
-    /**register a `tooShort` violation handler (use this with `minLength` attribute)*/    
+    /**register a `tooShort` violation handler (use this with `minLength` attribute)*/
     withMinLengthMessage(message: string | GConstraintValidator): GValidator<T> {
         return this.__addConstraintValidationHandler('tooShort', message);
     }
@@ -85,7 +114,7 @@ export class GValidator<T = any> {
     withStepMismatchMessage(message: string | GConstraintValidator): GValidator<T> {
         return this.__addConstraintValidationHandler('stepMismatch', message);
     }
-    
+
     /**register a custom validation handler */
     withCustomValidation(handler: GCustomValidatorHandler<T>): GValidator<T> {
         this._handlers.push(handler);
@@ -98,13 +127,19 @@ export class GValidator<T = any> {
     }
 
     private __addConstraintValidationHandler(validityKey: keyof ValidityState, message: string | GConstraintValidator): GValidator<T> {
-        if (__DEV__) {
-            if (this._track.includes(validityKey)) {
+        if (__DEV__ && this.track) {
+            if (this.track.includes(validityKey)) {
                 console.warn(`[Duplicate Handlers] - handler for '${validityKey}' has already been defined`);
             }
-            this._track.push(validityKey);
+            this.track.push(validityKey);
         }
         this._constraintHandlers.push((input, key) => {
+            if (__DEV__) {
+                if (validityKey && typeof input[validityMap[validityKey]] === 'undefined') {
+                    console.warn(`[Missing Prop] - the input '${input.formKey}' has registered validator for the violation '${validityKey}' but the input hasn't described the constraint '${validityMap[validityKey]}'.\nadd '${validityMap[validityKey]}' to the input props.\nexample:\n<GInput formKey='${input.formKey}' ${validityMap[validityKey]}={...} />`);
+                }
+            }
+
             if (key === validityKey) {
                 input.errorText = typeof message === 'string' ? message : message(input);
                 return true;
