@@ -2,8 +2,8 @@
 
 ![gform-react](https://gform-react.onrender.com/gform-logo.png)
 
-[![minified](http://img.badgesize.io/https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js?label=minified_size)](https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js)
-[![gzip size](http://img.badgesize.io/https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js?compression=gzip)](https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js)
+![npm bundle size](https://img.shields.io/bundlephobia/min/gform-react?label=minified%20size&color=green)
+![npm bundle size](https://img.shields.io/bundlephobia/minzip/gform-react?label=gzip%20size&color=green)
 ![npm peer dependency version](https://img.shields.io/npm/dependency-version/gform-react/peer/react)
 ![npm peer dependency version](https://img.shields.io/npm/dependency-version/gform-react/peer/react-dom)
 [![NPM](https://img.shields.io/npm/l/gform-react)](https://unpkg.com/gform-react@latest/LICENSE.md)
