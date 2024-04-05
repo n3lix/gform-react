@@ -132,20 +132,10 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
                 console.warn(`[No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
             }
 
-            const dispatchers = Object.keys(state.fields).reduce<{ [key: string]: Partial<GInputState> }>((fields, key) => {
-                fields[key] = { dispatchChanges: (changes: Partial<GInputState>) => _dispatchChanges(changes, key) };
-                return fields;
-            }, {});
-
             if (onInit) {
-                const _handler = (_c: void | PartialForm<T>) => {
-                    _dispatchChanges({ fields: _merge<IForm<T> & { [key: string]: GInputState; }>({}, state.fields, dispatchers, _c) });
-                };
+                const _handler = (_c: void | PartialForm<T>) => _dispatchChanges({ fields: _merge<IForm<T> & { [key: string]: GInputState; }>({}, state.fields, _c) });
                 const changes = onInit(formState);
                 changes instanceof Promise ? changes.then(_handler) : _handler(changes);
-            }
-            else {
-                _dispatchChanges({ fields: _merge<IForm<T> & { [key: string]: GInputState; }>({}, state.fields, dispatchers) });
             }
         }, []);
 

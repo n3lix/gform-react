@@ -17,7 +17,7 @@ const typeValueDict: { [key: string]: keyof HTMLFormElement | GDOMElement } = {
 
 const generateId = () => (+new Date()).toString(36) + (1 - Math.random()).toString(36).substring(2, 16);
 
-export const _buildFormInitialValues = <T>(rows: JSX.Element | JSX.Element[] = []) => {
+export const _buildFormInitialValues = <T>(rows: JSX.Element | JSX.Element[] = [], _dispatchChanges: (changes: Partial<GInputState>) => void) => {
     const fields: { [key: string]: GInputInitialState } = {};
 
     if (!Array.isArray(rows)) rows = [rows];
@@ -57,6 +57,7 @@ export const _buildFormInitialValues = <T>(rows: JSX.Element | JSX.Element[] = [
                 debounce,
                 dirty: false,
                 touched: false,
+                dispatchChanges: (changes: Partial<GInputState>) => _dispatchChanges(changes),
                 gid: generateId()
             };
 
@@ -215,7 +216,7 @@ export const _extractValue = <T>(e?: GChangeEvent<GDOMElement | HTMLFormElement>
     return (e?.value as T) || (isObject(unknown) ? unknown.value : unknown);
 };
 
-export const _checkResult = (handlerResult: boolean | RegExp | string, value: string | number | boolean): boolean => typeof handlerResult === 'boolean' ? handlerResult  : typeof value === 'string' ? typeof handlerResult === 'string' ? !new RegExp(handlerResult).test(value) : !handlerResult.test(value) : false;
+export const _checkResult = (handlerResult: boolean | RegExp | string, value: string | number | boolean): boolean => typeof handlerResult === 'boolean' ? handlerResult : typeof value === 'string' ? typeof handlerResult === 'string' ? !new RegExp(handlerResult).test(value) : !handlerResult.test(value) : false;
 
 export const _merge = <T extends object>(target: { [key: string]: any } = {}, ...nodes: ({ [key: string]: any } | undefined | void)[]): T => {
     if (!nodes.length) return target as T;

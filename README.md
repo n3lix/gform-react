@@ -2,7 +2,7 @@
 
 ![gform-react](https://gform-react.onrender.com/gform-logo.png)
 
-[![gzip size](http://img.badgesize.io/https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js?label=minified_size)](https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js)
+[![minified](http://img.badgesize.io/https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js?label=minified_size)](https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js)
 [![gzip size](http://img.badgesize.io/https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js?compression=gzip)](https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js)
 ![npm peer dependency version](https://img.shields.io/npm/dependency-version/gform-react/peer/react)
 ![npm peer dependency version](https://img.shields.io/npm/dependency-version/gform-react/peer/react-dom)

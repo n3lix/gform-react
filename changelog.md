@@ -1,3 +1,8 @@
+## 1.10.0
+* optimization
+* Fixed a bug where fetch running on every parent render
+* Fixed a bug where dispatchChanges is undefined in fetch function
+
 ## 1.9.4
 * Added development warning incase of input has described a constraint but didn't register a validator
 * Added development warning incase of input has a validator but hasn't described the constraint

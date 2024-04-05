@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, forwardRef } from "react";
 import type { ReactNode, MutableRefObject, FC } from "react";
 
 import { useForm } from "./useForm";
-import { _checkIfFormIsValid, _toRawData, _toURLSearchParams, _merge, _findValidityKey, _checkResult } from "./helpers";
+import { _checkIfFormIsValid, _toRawData, _toURLSearchParams, _merge } from "./helpers";
 import { GFormContextProvider } from "./context";
 import type { RNGFormState, ToRawDataOptions } from "./state";
 import type { GValidators } from "./validations";
@@ -68,20 +68,10 @@ export const RNGForm: <T extends any>(props: RNGFormProps<T>) => ReturnType<FC<R
         }, [state.fields]);
 
         useEffect(() => {
-            const dispatchers = Object.keys(state.fields).reduce<{ [key: string]: Partial<GInputState> }>((fields, key) => {
-                fields[key] = { dispatchChanges: (changes: Partial<GInputState>) => _dispatchChanges(changes, key) };
-                return fields;
-            }, {});
-
             if (onInit) {
-                const _handler = (_c: void | PartialForm<T>) => {
-                    _dispatchChanges({ fields: _merge<IForm<T> & { [key: string]: GInputState; }>({}, state.fields, dispatchers, _c) });
-                };
+                const _handler = (_c: void | PartialForm<T>) => _dispatchChanges({ fields: _merge<IForm<T> & { [key: string]: GInputState; }>({}, state.fields, _c) });
                 const changes = onInit(formState);
                 changes instanceof Promise ? changes.then(_handler) : _handler(changes);
-            }
-            else {
-                _dispatchChanges({ fields: _merge<IForm<T> & { [key: string]: GInputState; }>({}, state.fields, dispatchers) });
             }
         }, []);
 
