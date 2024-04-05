@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes, HTMLInputTypeAttribute } from 'react';
 import type { IForm } from '../form';
-import { TextInputProps } from 'react-native';
+import type { TextInputProps } from 'react-native';
 
 export * from './GInput';
 export * from './RNGInput';

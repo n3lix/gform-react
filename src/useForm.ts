@@ -8,8 +8,11 @@ import type { GFormState, InitialState } from "./state";
 import { handlersMap, validityMap } from "./validations/GValidator";
 
 export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFormState<T>) => JSX.Element | JSX.Element[]), validators: GValidators<T> = {}, optimized = false) => {
+    // eslint-disable-next-line prefer-const
+    let _dispatchChanges: (changes: Partial<InitialState<T>> | Partial<GInputState>, key?: string) => void;
+
     const initialValues = useMemo(() => {
-        const values = _buildFormInitialValues<T>(typeof children === 'function' ? children({} as GFormState<T>) : children);
+        const values = _buildFormInitialValues<T>(typeof children === 'function' ? children({} as GFormState<T>) : children, _dispatchChanges);
         if (__DEV__) {
             Object.keys(values.state.fields).forEach(key => {
                 const input = values.state.fields[key];
@@ -32,7 +35,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
             });
         }
         return values;
-    }, [children]);
+    }, []);
     const [state, setState] = useState(initialValues.state);
 
     /**
@@ -125,7 +128,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
         return input;
     };
 
-    const _dispatchChanges = (changes: Partial<InitialState<T>> | Partial<GInputState>, key?: string) => setState(prev => {
+    _dispatchChanges = (changes: Partial<InitialState<T>> | Partial<GInputState>, key?: string) => setState(prev => {
         if (key) {
             return { ...prev, fields: { ...prev.fields, [key]: { ...prev.fields[key], ...changes } } };
         }
