@@ -22,7 +22,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
 
                     validityKeys?.forEach(vKey => {
                         if (typeof input[validityMap[vKey]] === 'undefined') {
-                            console.warn(`[Missing Prop] - the input '${input.formKey}' has registered validator for the violation '${vKey}' but the input hasn't described the constraint '${validityMap[vKey]}'.\nadd '${validityMap[vKey]}' to the input props.\nexample:\n<GInput formKey='${input.formKey}' ${validityMap[vKey]}={...} />`);
+                            console.warn(`[Missing Prop] - the input '${input.formKey}' has registered validator for the violation '${vKey}' but the input hasn't described the constraint '${validityMap[vKey]}'.\nadd '${validityMap[vKey]}' to the input props.\nexample:\n<GInput formKey='${input.formKey}' ${validityMap[vKey]}={...} />\n\nor either remove '.${handlersMap[validityMap[vKey]]}(...)' validation`);
                         }
                     });
 
@@ -36,6 +36,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
         }
         return values;
     }, []);
+
     const [state, setState] = useState(initialValues.state);
 
     /**
@@ -45,10 +46,26 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
      */
     const _viHandler = (input: GInputState, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
         if (!input) return;
-        const element = e?.target;
+        const element = e && e.target;
 
         if (typeof document !== 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
             if (!input.checkValidity) input.checkValidity = () => element.checkValidity();
+            
+            //if the field has initial value
+            if (!input.dirty && input.value) {
+                /**
+                * for inputs with initial value
+                * we have to manually check for validations.
+                * validity.tooShort is false even though initial value is smaller than minLength, because its required to be filled in by user (native dirty flag is true).
+                * it only works for validity.valueMissing.
+                * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
+                * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
+                */
+                _checkInputManually(input);
+                _dispatchChanges(input, input.formKey);
+                return;
+            }
+
             element.setCustomValidity(''); //reset any previous error (custom)
 
             const validityKey = _findValidityKey(element.validity);
@@ -64,15 +81,15 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
                 console.log('[validateInputHandler] -', `the input '${input.formKey}' is not a native web element\nevent:`, e);
             }
 
-            //fallback - validate the input for constraint validation manually
-            input.checkValidity = () => _createInputChecker(input);
+            //fallback - validate the input for validations manually
+            input.checkValidity = () => _checkInputManually(input);
             input.checkValidity();
 
             _dispatchChanges(input, input.formKey);
         }
     };
 
-    const _createInputChecker = (input: GInputState) => {
+    const _checkInputManually = (input: GInputState) => {
         let validityKey = _findValidityKey({
             valueMissing: input.required && !input.value || false,
             tooShort: input.minLength && input.value.toString().length < input.minLength || false,
@@ -181,7 +198,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
                     if (!input.error) input.errorText = '';
 
                     _dispatchChanges({ error: input.error, errorText: input.errorText }, input.formKey);
-                    setValidity?.(input.errorText);
+                    setValidity && setValidity(input.errorText);
                 };
 
                 if (__DEBUG__) {
@@ -193,5 +210,5 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
 
     };
 
-    return { state, _updateInputHandler, _viHandler, _dispatchChanges, optimized, key: initialValues.key, _createInputChecker };
+    return { state, _updateInputHandler, _viHandler, _dispatchChanges, optimized, key: initialValues.key, _createInputChecker: _checkInputManually };
 };

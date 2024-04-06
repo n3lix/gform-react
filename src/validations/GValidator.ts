@@ -135,8 +135,8 @@ export class GValidator<T = any> {
         }
         this._constraintHandlers.push((input, key) => {
             if (__DEV__) {
-                if (validityKey && typeof input[validityMap[validityKey]] === 'undefined') {
-                    console.warn(`[Missing Prop] - the input '${input.formKey}' has registered validator for the violation '${validityKey}' but the input hasn't described the constraint '${validityMap[validityKey]}'.\nadd '${validityMap[validityKey]}' to the input props.\nexample:\n<GInput formKey='${input.formKey}' ${validityMap[validityKey]}={...} />`);
+                if (validityKey && validityMap[validityKey] && typeof input[validityMap[validityKey]] === 'undefined') {
+                    console.warn(`[Missing Prop] - the input '${input.formKey}' has registered validator for the violation '${validityKey}' but the input hasn't described the constraint '${validityMap[validityKey]}'.\nadd '${validityMap[validityKey]}' to the input props.\nexample:\n<GInput formKey='${input.formKey}' ${validityMap[validityKey]}={...} />\n\nor either remove '.${handlersMap[validityMap[validityKey]]}(...)' validation`);
                 }
             }
 

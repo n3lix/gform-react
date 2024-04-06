@@ -76,12 +76,12 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
                 toFormData: () => _toFormData(formRef.current),
                 toURLSearchParams: _toURLSearchParams,
                 checkValidity: function () { // it has to be function in order to refer to 'this'
-                    this.isValid = formRef.current?.checkValidity() || false;
+                    this.isValid = formRef.current && formRef.current.checkValidity() || false;
                     this.isInvalid = !this.isValid;
                     return this.isValid;
                 },
                 setLoading: (p) => _dispatchChanges({ loading: typeof p === 'function' ? p(state.loading) : p }),
-                dispatchChanges: (changes: PartialForm<T> & { [key: string]: Partial<GInputState<any>> }) => _dispatchChanges({fields: _merge<IForm<T> & { [key: string]: GInputState; }>({}, state.fields, changes)})
+                dispatchChanges: (changes: PartialForm<T> & { [key: string]: Partial<GInputState<any>> }) => _dispatchChanges({ fields: _merge<IForm<T> & { [key: string]: GInputState; }>({}, state.fields, changes) })
             };
 
             if (stateRef) stateRef.current = formState;
@@ -93,19 +93,20 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
             const formChildren = typeof children === 'function' ? children(formState) : children;
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
-                onSubmit?.(formState, e);
+                if (formState.isValid && onSubmit) {
+                    onSubmit(formState, e);
+                }
             };
 
             let _onPaste;
-
             if (onPaste) {
                 _onPaste = (e: ClipboardEvent<HTMLFormElement>) => onPaste(formState, e);
             }
 
             return optimized
                 ?
-                <form {...rest} 
-                    ref={refHandler} 
+                <form {...rest}
+                    ref={refHandler}
                     onPaste={_onPaste}
                     onBlur={(e: GChangeEvent<HTMLFormElement>) => {
                         _viHandler(state.fields[e.target.name], e);
@@ -116,13 +117,13 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
                     }}
                     onChange={(e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
                         _updateInputHandler(e.target.name, e, unknown);
-                        onChange?.(formState, e);
+                        onChange && onChange(formState, e);
                     }}
                     onSubmit={_onSubmit}>
                     {formChildren}
                 </form>
                 :
-                <form {...rest} onChange={(e) => onChange?.(formState, e)} ref={refHandler} onSubmit={_onSubmit} onPaste={_onPaste}>
+                <form {...rest} onChange={(e) => onChange && onChange(formState, e)} ref={refHandler} onSubmit={_onSubmit} onPaste={_onPaste}>
                     {formChildren}
                 </form>;
         }, [formState, children]);
@@ -137,6 +138,25 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
                 const changes = onInit(formState);
                 changes instanceof Promise ? changes.then(_handler) : _handler(changes);
             }
+
+            if (__DEBUG__) {
+                console.log('checking for initial values');
+            }
+
+            Object.values(state.fields).forEach(field => {
+                //we dont want to apply validation on empty fields so skip it.
+                if (!field.value) return;
+
+                if (__DEBUG__) {
+                    console.log(`found input '${field.formKey}', applying validation(s)`);
+                }
+                /**
+                * We have to manually check for validations (checkValidty() will not result with validty.tooShort = true).
+                * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
+                * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
+                */
+                _viHandler(field);
+            });
         }, []);
 
         return (

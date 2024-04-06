@@ -38,7 +38,7 @@ export const RNGForm: <T extends any>(props: RNGFormProps<T>) => ReturnType<FC<R
         ...rest
     }, ref) => {
         const values = useForm<T>(children as JSX.Element | JSX.Element[], validators);
-        const { state, _dispatchChanges, key } = values;
+        const { state, _dispatchChanges, key, _viHandler } = values;
 
         const formState = useMemo(() => {
             const _isFormValid = _checkIfFormIsValid(state.fields);
@@ -73,6 +73,25 @@ export const RNGForm: <T extends any>(props: RNGFormProps<T>) => ReturnType<FC<R
                 const changes = onInit(formState);
                 changes instanceof Promise ? changes.then(_handler) : _handler(changes);
             }
+            
+            if (__DEBUG__) {
+                console.log('checking for initial values');
+            }
+
+            Object.values(state.fields).forEach(field => {
+                //we dont want to apply validation on empty fields so skip it.
+                if (!field.value) return;
+
+                if (__DEBUG__) {
+                    console.log(`found input '${field.formKey}', applying validation(s)`);
+                }
+                /**
+                * We have to manually check for validations (checkValidty() will not result with validty.tooShort = true).
+                * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
+                * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
+                */
+                _viHandler(field);
+            });
         }, []);
 
         const formComponent = useMemo(() => {
