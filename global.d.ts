@@ -5,7 +5,7 @@ declare global {
         * 
         * available in `development` mode only.
         * @example
-        * if ($DEF_DEBUG) { 
+        * if (__DEBUG__) { 
         *   //dead block
         * }
         */

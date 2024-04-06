@@ -1,3 +1,7 @@
+## 1.11.0
+* Added validations for inputs with initial value (except required)
+* Fixed development only warnigns
+
 ## 1.10.0
 * optimization
 * Fixed a bug where fetch running on every parent render
