@@ -55,6 +55,7 @@ export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, elem
 
     useEffect(() => {
         if (fetch) {
+            inputState.dispatchChanges = (changes: Partial<GInputState>) => _dispatchChanges(changes, formKey);
             _debounce(debounce, `${inputState.gid}-fetch`).then(() => {
                 const res = fetch(inputState, fields);
                 res instanceof Promise ? res.then((state) => state && _dispatchChanges(state, formKey)) : res && _dispatchChanges(res, formKey);
