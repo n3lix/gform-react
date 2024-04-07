@@ -139,11 +139,17 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
                 changes instanceof Promise ? changes.then(_handler) : _handler(changes);
             }
 
+            const dipatchers: Record<string, Record<string, (changes: Partial<GInputState>) => void>> = {};
+
             if (__DEBUG__) {
                 console.log('checking for initial values');
             }
 
             Object.values(state.fields).forEach(field => {
+                dipatchers[field.formKey] = {
+                    dispatchChanges: (changes: Partial<GInputState>) => _dispatchChanges(changes, field.formKey)
+                };
+
                 //we dont want to apply validation on empty fields so skip it.
                 if (!field.value) return;
 
@@ -157,6 +163,7 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
                 */
                 _viHandler(field);
             });
+            _dispatchChanges({fields: _merge(dipatchers, state.fields)});
         }, []);
 
         return (

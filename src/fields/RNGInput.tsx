@@ -43,6 +43,7 @@ export const RNGInput = forwardRef<any, RNGInputProps>(({ formKey, element, type
             _dispatchChanges(inputState, formKey);
             return result;
         };
+        inputState.dispatchChanges = (changes: Partial<GInputState>) => _dispatchChanges(changes, formKey);
         _dispatchChanges(inputState, formKey);
     }, []);
 

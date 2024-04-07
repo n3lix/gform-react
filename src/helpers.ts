@@ -17,7 +17,7 @@ const typeValueDict: { [key: string]: keyof HTMLFormElement | GDOMElement } = {
 
 const generateId = () => (+new Date()).toString(36) + (1 - Math.random()).toString(36).substring(2, 16);
 
-export const _buildFormInitialValues = <T>(rows: JSX.Element | JSX.Element[] = [], _dispatchChanges: (changes: Partial<GInputState>) => void) => {
+export const _buildFormInitialValues = <T>(rows: JSX.Element | JSX.Element[] = []) => {
     const fields: { [key: string]: GInputInitialState } = {};
 
     if (!Array.isArray(rows)) rows = [rows];
@@ -57,7 +57,6 @@ export const _buildFormInitialValues = <T>(rows: JSX.Element | JSX.Element[] = [
                 debounce,
                 dirty: false,
                 touched: false,
-                dispatchChanges: (changes: Partial<GInputState>) => _dispatchChanges(changes),
                 gid: generateId()
             };
 

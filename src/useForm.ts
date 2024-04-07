@@ -8,11 +8,8 @@ import type { GFormState, InitialState } from "./state";
 import { handlersMap, validityMap } from "./validations/GValidator";
 
 export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFormState<T>) => JSX.Element | JSX.Element[]), validators: GValidators<T> = {}, optimized = false) => {
-    // eslint-disable-next-line prefer-const
-    let _dispatchChanges: (changes: Partial<InitialState<T>> | Partial<GInputState>, key?: string) => void;
-
     const initialValues = useMemo(() => {
-        const values = _buildFormInitialValues<T>(typeof children === 'function' ? children({} as GFormState<T>) : children, _dispatchChanges);
+        const values = _buildFormInitialValues<T>(typeof children === 'function' ? children({} as GFormState<T>) : children);
         if (__DEV__) {
             Object.keys(values.state.fields).forEach(key => {
                 const input = values.state.fields[key];
@@ -54,8 +51,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
             //if the field has initial value
             if (!input.dirty && input.value) {
                 /**
-                * for inputs with initial value
-                * we have to manually check for validations.
+                * for inputs with initial value we have to manually check for validations.
                 * validity.tooShort is false even though initial value is smaller than minLength, because its required to be filled in by user (native dirty flag is true).
                 * it only works for validity.valueMissing.
                 * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
@@ -65,7 +61,6 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
                 _dispatchChanges(input, input.formKey);
                 return;
             }
-
             element.setCustomValidity(''); //reset any previous error (custom)
 
             const validityKey = _findValidityKey(element.validity);
@@ -145,7 +140,7 @@ export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFo
         return input;
     };
 
-    _dispatchChanges = (changes: Partial<InitialState<T>> | Partial<GInputState>, key?: string) => setState(prev => {
+    const _dispatchChanges = (changes: Partial<InitialState<T>> | Partial<GInputState>, key?: string) => setState(prev => {
         if (key) {
             return { ...prev, fields: { ...prev.fields, [key]: { ...prev.fields[key], ...changes } } };
         }

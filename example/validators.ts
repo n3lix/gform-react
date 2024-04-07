@@ -28,15 +28,7 @@ export const baseValidations = new GValidator()
 
 export const validators: GValidators<SignUpForm> = {
     '*': baseValidations,
-    email: new GValidator<SignUpForm>(baseValidations)
-        .withCustomValidation(input => {
-            input.errorText='test2';
-            return false;
-        })
-        .withCustomValidationAsync(async input => {
-            input.errorText='test';
-            return true;
-        }),
+    email: baseValidations,
     password: new GValidator<SignUpForm>(baseValidations)
         .withCustomValidation((input) => {
             input.errorText = `${input.formKey} must contain special char`;
