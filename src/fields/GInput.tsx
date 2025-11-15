@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useMemo } from 'react';
+import React, {forwardRef, ReactNode, useEffect, useMemo} from 'react';
 
 import { useGenericFormContext } from "../context";
 import { _debounce } from '../helpers';
@@ -43,7 +43,7 @@ export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, elem
         }
 
         if (element) {
-            return (element as (input: GInputState, props: GElementProps<typeof value>) => JSX.Element)(inputState, _props);
+            return (element as (input: GInputState, props: GElementProps<typeof value>) => ReactNode)(inputState, _props);
         }
 
         return (

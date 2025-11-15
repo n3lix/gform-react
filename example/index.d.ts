@@ -1,4 +1,24 @@
-import type { Dispatch, HTMLAttributes, MutableRefObject, ReactNode, SetStateAction, HTMLInputTypeAttribute, FocusEvent, InvalidEvent, FormEventHandler, ChangeEventHandler, FocusEventHandler, EventHandler, SyntheticEvent, ChangeEvent, FormEvent, InputHTMLAttributes, FC, ClipboardEvent } from "react";
+import {
+    Dispatch,
+    HTMLAttributes,
+    MutableRefObject,
+    ReactNode,
+    SetStateAction,
+    HTMLInputTypeAttribute,
+    FocusEvent,
+    InvalidEvent,
+    FormEventHandler,
+    ChangeEventHandler,
+    FocusEventHandler,
+    EventHandler,
+    SyntheticEvent,
+    ChangeEvent,
+    FormEvent,
+    InputHTMLAttributes,
+    FC,
+    ClipboardEvent,
+    RefObject, DetailedHTMLProps, FormHTMLAttributes
+} from "react";
 
 export type RawData<T> = {
     [key in keyof T]: T[key];
@@ -238,12 +258,12 @@ export declare class GValidator<T = any> {
     withCustomValidationAsync(handler: GCustomValidatorHandlerAsync<T>): GValidator<T>;
 }
 
-export type GFormProps<T> = Omit<HTMLAttributes<HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'children'> & {
+export type GFormProps<T> = Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'children'> & {
     children?: ReactNode | ReactNode[] | ((state: GFormState<T>) => ReactNode | ReactNode[]);
     /** @param loader - a component to display while loading (optional). */
     loader?: ReactNode;
     /** @param stateRef - pass a ref which will points to the current state of the form (optional). */
-    stateRef?: MutableRefObject<GFormState<T> | undefined>;
+    stateRef?: RefObject<GFormState<T> | undefined>;
     /** @param onSubmit - a handler for the form submission (optional). */
     onSubmit?: (state: GFormState<T>, e: FormEvent<HTMLFormElement>) => void;
     /** @param onChange - register onChange handler (optional). */

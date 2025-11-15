@@ -56,9 +56,9 @@ export class GValidator<T = any> {
         const baseConstraintHandlers = baseValidator?.constraintHandlers || [];
         const baseHandlersAsync = baseValidator?.asyncHandlers || [];
 
-        this._handlers = new Array<GCustomValidatorHandler<T>>().concat(baseHandlers);
-        this._constraintHandlers = new Array<GConstraintValidatorHandler>().concat(baseConstraintHandlers);
-        this._asyncHandlers = new Array<GCustomValidatorHandlerAsync<T>>().concat(baseHandlersAsync);
+        this._handlers = [].concat(baseHandlers as any);
+        this._constraintHandlers = [].concat(baseConstraintHandlers as any);
+        this._asyncHandlers = [].concat(baseHandlersAsync as any);
 
         if (__DEV__) {
             this.track = [];

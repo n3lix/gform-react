@@ -37,7 +37,7 @@ export const RNGForm: <T extends any>(props: RNGFormProps<T>) => ReturnType<FC<R
         el: El,
         ...rest
     }, ref) => {
-        const values = useForm<T>(children as JSX.Element | JSX.Element[], validators);
+        const values = useForm<T>(children as ReactNode, validators);
         const { state, _dispatchChanges, key, _viHandler } = values;
 
         const formState = useMemo(() => {

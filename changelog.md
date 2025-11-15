@@ -1,3 +1,8 @@
+## 2.0.1
+* Supports React 19 and Next.js 15
+* `onSubmit` no longer prevents default behavior (`e.preventDefault`) to support `server actions` (with `action` attribute),<br/>it can be done manually via `e` object
+* Fixed typing issues
+
 ## 1.11.0
 * Added validations for inputs with initial value (except required)
 * Fixed development only warnigns
@@ -8,8 +13,8 @@
 * Fixed a bug where dispatchChanges is undefined in fetch function
 
 ## 1.9.4
-* Added development warning incase of input has described a constraint but didn't register a validator
-* Added development warning incase of input has a validator but hasn't described the constraint
+* Added development warning in case of input has described a constraint but didn't register a validator
+* Added development warning in case of input has a validator but hasn't described the constraint
 
 ## 1.9.3
 * Minor bug fixes
@@ -20,7 +25,7 @@
 
 ## 1.5.1
 * bug fixes
-* Accessiblity semi-automatic
+* Accessibility semi-automatic
 
 ## 1.5.0
 * Added forwardRef to GForm

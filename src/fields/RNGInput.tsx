@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useMemo } from 'react';
+import React, {forwardRef, ReactNode, useEffect, useMemo} from 'react';
 import { TextInput } from 'react-native';
 
 import { useGenericFormContext } from "../context";
@@ -29,7 +29,7 @@ export const RNGInput = forwardRef<any, RNGInputProps>(({ formKey, element, type
         };
 
         if (element) {
-            return (element as (input: GInputState, props: any) => JSX.Element)(inputState, _props);
+            return (element as (input: GInputState, props: any) => ReactNode)(inputState, _props);
         }
 
         return <TextInput {..._props}/>;

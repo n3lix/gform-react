@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, HTMLInputTypeAttribute } from 'react';
+import React, {InputHTMLAttributes, HTMLInputTypeAttribute, ReactNode} from 'react';
 import type { IForm } from '../form';
 import type { TextInputProps } from 'react-native';
 
@@ -48,8 +48,8 @@ export type GInputStateMutable<T = any> = GInputState<T> & {
     [key: string]: any;
 };
 
-type GInputElementHandler<T> = (input: GInputStateMutable<T>, props: GElementProps<T>) => JSX.Element;
-type RNGInputElementHandler<T> = (input: GInputStateMutable<T>, props: TextInputProps) => JSX.Element;
+type GInputElementHandler<T> = (input: GInputStateMutable<T>, props: GElementProps<T>) => ReactNode;
+type RNGInputElementHandler<T> = (input: GInputStateMutable<T>, props: TextInputProps) => ReactNode;
 
 export type RNGInputProps = BaseGenericFieldProps & TextInputProps & {
     defaultValue?: string | number;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import {ReactNode, useMemo, useState} from "react";
 
 import { _buildFormInitialValues, _findValidityKey, _checkResult, _extractValue, _debounce } from "./helpers";
 import { GValidator, type GInputValidator, type GValidators } from "./validations";
@@ -7,7 +7,7 @@ import type { GFocusEvent, GInvalidEvent, GChangeEvent, GFormEvent, GDOMElement 
 import type { GFormState, InitialState } from "./state";
 import { handlersMap, validityMap } from "./validations/GValidator";
 
-export const useForm = <T>(children?: JSX.Element | JSX.Element[] | ((state: GFormState<T>) => JSX.Element | JSX.Element[]), validators: GValidators<T> = {}, optimized = false) => {
+export const useForm = <T>(children?: ReactNode | ((state: GFormState<T>) => ReactNode), validators: GValidators<T> = {}, optimized = false) => {
     const initialValues = useMemo(() => {
         const values = _buildFormInitialValues<T>(typeof children === 'function' ? children({} as GFormState<T>) : children);
         if (__DEV__) {

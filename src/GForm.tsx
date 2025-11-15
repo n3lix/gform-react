@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useEffect, forwardRef } from "react";
-import type { ReactNode, HTMLAttributes, ChangeEvent, FormEvent, MutableRefObject, ClipboardEvent, FC } from "react";
+import React, {useMemo, useRef, useEffect, forwardRef, RefObject, DetailedHTMLProps, FormHTMLAttributes} from "react";
+import type { ReactNode, ChangeEvent, FormEvent, ClipboardEvent, FC } from "react";
 
 import { useForm } from "./useForm";
 import { _checkIfFormIsValid, _toRawData, _toFormData, _toURLSearchParams, _merge, hasSubmitter } from "./helpers";
@@ -9,12 +9,12 @@ import type { GValidators } from "./validations";
 import type { GChangeEvent, IForm, PartialForm } from "./form";
 import type { GInputState } from "./fields";
 
-export type GFormProps<T> = Omit<HTMLAttributes<HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'children'> & {
+export type GFormProps<T> = Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'children'> & {
     children?: ReactNode | ReactNode[] | ((state: GFormState<T>) => ReactNode | ReactNode[]);
     /** @param loader - a component to display while loading (optional). */
     loader?: ReactNode;
     /** @param stateRef - pass a ref which will points to the current state of the form (optional). */
-    stateRef?: MutableRefObject<GFormState<T> | undefined>;
+    stateRef?: RefObject<GFormState<T> | undefined>;
     /** @param onSubmit - a handler for the form submission (optional). */
     onSubmit?: (state: GFormState<T>, e: FormEvent<HTMLFormElement>) => void;
     /** @param onChange - register onChange handler (optional). */
@@ -51,7 +51,7 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
         ...rest
     }, ref) => {
         const formRef = useRef<HTMLFormElement | null>(null);
-        const values = useForm<T>(children as JSX.Element | JSX.Element[], validators, optimized);
+        const values = useForm<T>(children as any, validators, optimized);
         const { state, _updateInputHandler, _viHandler, _dispatchChanges, key } = values;
 
         const refHandler = (element: HTMLFormElement | null) => {
@@ -92,7 +92,6 @@ export const GForm: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GForm
         const formComponent = useMemo(() => {
             const formChildren = typeof children === 'function' ? children(formState) : children;
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
-                e.preventDefault();
                 if (formState.isValid && onSubmit) {
                     onSubmit(formState, e);
                 }
