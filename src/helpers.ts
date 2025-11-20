@@ -1,6 +1,6 @@
 import type { GInputInitialState, GInputProps, GInputState, GInputStateMutable } from './fields';
 import type { GChangeEvent, GDOMElement, IForm } from './form';
-import type { GFormState, InitialState, RawData, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions } from './state';
+import type { GFormState, RawData, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions } from './state';
 import type {ReactElement, ReactNode} from "react";
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
@@ -67,7 +67,7 @@ export const _buildFormInitialValues = <T>(rows: ReactNode | ReactNode[] = []) =
         });
     }
 
-    return { state: { fields, loading: false } as InitialState<T>, key: generateId() };
+    return { fields, key: generateId() };
 };
 
 const _findInputs = (root?: ReactElement<any> | ReactElement<any>[] | undefined[], total: (GInputProps & GInputStateMutable)[] = []): (GInputProps & GInputStateMutable)[] => {
@@ -100,6 +100,28 @@ export const _findValidityKey = (validity: Partial<ValidityState>): keyof Validi
         }
     }
 };
+
+export const _checkTypeMismatch = (input) => {
+    const value = input.value?.toString().trim();
+    if (!value) return false;
+
+    switch (input.type) {
+        case 'email':
+            return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); // basic email pattern
+        case 'url':
+            try {
+                new URL(value);
+                return false;
+            } catch {
+                return true;
+            }
+        case 'tel':
+            return !/^\+?[0-9\s\-().]{7,}$/.test(value); // basic phone pattern
+        default:
+            return false;
+    }
+};
+
 
 export const hasSubmitter = (form?: HTMLFormElement | null): boolean => {
     if (!form) return false;

@@ -1,3 +1,10 @@
+## 2.5.0
+* Added useFormSelector hook
+* Significantly improved performance
+* Fixed a bug with inputs type email where validation check didn't run
+* Fixed a bug with initial form validation check (fields with initial values)
+
+
 ## 2.0.1
 * Supports React 19 and Next.js 15
 * `onSubmit` no longer prevents default behavior (`e.preventDefault`) to support `server actions` (with `action` attribute),<br/>it can be done manually via `e` object
@@ -5,7 +12,7 @@
 
 ## 1.11.0
 * Added validations for inputs with initial value (except required)
-* Fixed development only warnigns
+* Fixed development only warnings
 
 ## 1.10.0
 * optimization

@@ -1,0 +1,167 @@
+import {_checkResult, _checkTypeMismatch, _debounce, _extractValue, _findValidityKey} from "./helpers";
+import {type GInputValidator, type GValidators} from "./validations";
+import type {GInputState} from "./fields";
+import type {GChangeEvent, GDOMElement, GFocusEvent, GFormEvent, GInvalidEvent} from "./form";
+import type {InitialState} from "./state";
+
+export const useFormHandlers = (getState, setState, validators: GValidators<T> = {}, optimized = false) => {
+    /**
+     * handler for validating a form input
+     * @param input the input to be validated
+     * @param e the event object
+     */
+    const _viHandler = (input: GInputState, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
+        if (!input) return;
+        const element = e && e.target;
+
+        if (typeof document !== 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
+            if (!input.checkValidity) input.checkValidity = () => element.checkValidity();
+
+            //if the field has initial value
+            if (!input.dirty && input.value && !input.touched) {
+                /**
+                 * for inputs with initial value we have to manually check for validations.
+                 * validity.tooShort is false even though initial value is smaller than minLength, because its required to be filled in by user (native dirty flag is true).
+                 * it only works for validity.valueMissing.
+                 * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
+                 * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
+                 */
+                _checkInputManually(input);
+                _dispatchChanges(input, input.formKey);
+                return;
+            }
+            element.setCustomValidity(''); //reset any previous error (custom)
+
+            const validityKey = _findValidityKey(element.validity);
+            _validateInput(input, validityKey, (v: string) => element.setCustomValidity(v));
+
+            if (!validityKey && input.error) {
+                element.setCustomValidity(input.errorText || 'error');
+            }
+
+            _dispatchChanges(input, input.formKey);
+        } else {
+            if (__DEBUG__) {
+                console.log('[validateInputHandler] -', `the input '${input.formKey}' is not a native web element\nevent:`, e);
+            }
+
+            //fallback - validate the input for validations manually
+            input.checkValidity = () => _checkInputManually(input);
+            input.checkValidity();
+
+            _dispatchChanges(input, input.formKey);
+        }
+    };
+
+    const _checkInputManually = (input: GInputState) => {
+        let validityKey = _findValidityKey({
+            valueMissing: input.required && !input.value || false,
+            typeMismatch: _checkTypeMismatch(input),
+            tooShort: input.minLength && input.value.toString().length < input.minLength || false,
+            tooLong: input.maxLength && input.value.toString().length > input.maxLength || false,
+            patternMismatch: input.pattern && _checkResult(input.pattern, input.value) || false,
+            rangeUnderflow: input.min && Number(input.value) < Number(input.min) || false,
+            rangeOverflow: input.max && Number(input.value) > Number(input.max) || false
+        });
+
+        if (!validityKey && input.error) {
+            validityKey = 'customError';
+        }
+        _validateInput(input, validityKey);
+        return !input.error;
+    };
+
+    /**
+     * handler for updating and validating a form input
+     * @param input
+     * @param e the event object
+     * @param unknown
+     */
+    const _updateInputHandler = (input: GInputState, e?: GChangeEvent<GDOMElement | HTMLFormElement>, unknown?: { value: unknown } | string | number): void => {
+        input.value = _extractValue(e, unknown) as GInputState['value'];
+        _viHandler(input, e);
+    };
+
+    /**
+     * Validates the input and updates the state with the raaaaaaaesult
+     * @param input the input to be validated
+     * @param validityKey the `Constraint Validation` key
+     * @param setValidity
+     */
+    const _validateInput = (input: GInputState, validityKey?: keyof ValidityState, setValidity?: (e: string) => void): void => {
+        const inputValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        if (__DEBUG__) {
+            console.log('[validateInput] -', 'validating input:', input.formKey, `(${validityKey ? validityKey : 'custom'})`);
+        }
+
+        inputValidator && __validateInput(input, inputValidator, validityKey, setValidity);
+        input.touched = true;
+    };
+
+    const _dispatchChanges = (changes: Partial<InitialState<T>> | Partial<GInputState>, key?: string) => setState(prev => {
+        if (key) {
+            return { ...prev, fields: { ...prev.fields, [key]: { ...prev.fields[key], ...changes } } };
+        }
+        return { ...prev, ...changes };
+    });
+
+    /**
+     * @internal
+     */
+    const __validateInput = <T>(input: GInputState, inputValidator: GInputValidator<T>, validityKey?: keyof ValidityState, setValidity?: (e: string) => void): void => {
+        if (__DEBUG__) {
+            console.log('[_validateInput] -', `validating input (${input.formKey}) with handlers:`, inputValidator.handlers);
+        }
+        const fields = getState().fields;
+
+        for (const index in inputValidator.constraintHandlers) {
+            const result = inputValidator.constraintHandlers[index](input, validityKey);
+            if (__DEBUG__) {
+                console.log('[_validateInput] -', `validation results for constraint handler (${index}):\n`, inputValidator.constraintHandlers[index], '\n\nvalidator result:', result, '\nviolation:', input.error, `(${input.error ? 'failed' : 'passed'})`);
+            }
+
+            input.error = _checkResult(result, input.value);
+            if (input.error) return;
+        }
+
+        for (const index in inputValidator.handlers) {
+            const result = inputValidator.handlers[index](input, fields);
+            if (__DEBUG__) {
+                console.log('[_validateInput] -', `validation results for custom handler (${index}):\n`, inputValidator.handlers[index], '\n\nvalidator result:', result, '\nviolation:', input.error, `(${input.error ? 'failed' : 'passed'})`);
+            }
+
+            input.error = _checkResult(result, input.value);
+            if (input.error) return;
+        }
+
+        input.errorText = '';
+
+        if (inputValidator.asyncHandlers.length) {
+            input.error = true;
+            _debounce(input.debounce || 300, `${input.gid}-async`).then(() => {
+                const validateAsync = async () => {
+                    for (const index in inputValidator.asyncHandlers) {
+                        const result = await inputValidator.asyncHandlers[index](input, fields);
+                        if (__DEBUG__) {
+                            console.log('[_validateInput] -', `validation results for custom async handler (${index}):\n`, inputValidator.asyncHandlers[index], '\n\nvalidator result:', result, '\nviolation:', input.error, `(${input.error ? 'failed' : 'passed'})`);
+                        }
+
+                        input.error = _checkResult(result, input.value);
+                        if (input.error) break;
+                    }
+                    if (!input.error) input.errorText = '';
+
+                    _dispatchChanges({ error: input.error, errorText: input.errorText }, input.formKey);
+                    setValidity && setValidity(input.errorText);
+                };
+
+                if (__DEBUG__) {
+                    console.log('[_validateInput] -', `validating input (${input.formKey}) with async handlers:`, inputValidator.asyncHandlers);
+                }
+                validateAsync();
+            });
+        }
+    };
+
+    return { _updateInputHandler, _viHandler, _dispatchChanges, optimized, _createInputChecker: _checkInputManually };
+};

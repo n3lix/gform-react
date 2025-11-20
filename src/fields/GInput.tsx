@@ -1,12 +1,23 @@
 import React, {forwardRef, ReactNode, useEffect, useMemo} from 'react';
 
-import { useGenericFormContext } from "../context";
 import { _debounce } from '../helpers';
 import type { GInputProps, GInputState, GElementProps } from '.';
+import {useFormSelector, createSelector, useFormStore} from "../form-context";
 
-export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, element, title, type, validatorKey, fetch, fetchDeps = [], optimized, defaultChecked, defaultValue, checked, value, debounce=300, ...rest }, ref) => {
-    const { state: { fields }, _updateInputHandler, _dispatchChanges, optimized: formOptimized, _viHandler } = useGenericFormContext();
-    const inputState = fields[formKey];
+const selectFields = [(state) => state.fields];
+
+export const makeSelectFields = (keys: string[]) =>
+    createSelector(
+        selectFields,
+        (fields) => {
+            const selected = keys.map((key) => fields[key]).filter(Boolean);
+            return selected.length ? selected : null;
+        }
+    );
+
+export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, element, title, type, validatorKey, fetch, fetchDeps = ['unknown'], optimized, defaultChecked, defaultValue, checked, value, debounce=300, ...rest }, ref) => {
+    const inputState = useFormSelector(state => state.fields[formKey]);
+    const handlers = useFormStore().handlers;
 
     const _element = useMemo(() => {
         let value: any, checked;
@@ -26,18 +37,18 @@ export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, elem
             title: title || inputState.errorText
         };
 
-        if (!formOptimized || !optimized) {
+        if (!handlers.formOptimized || !optimized) {
             _props.onBlur = (e) => {
-                _viHandler(inputState, e);
+                handlers._viHandler(inputState, e);
                 rest.onBlur && rest.onBlur(e);
             };
             _props.onInvalid = (e) => {
                 e.preventDefault(); // hide default browser validation tooltip
-                _viHandler(inputState, e);
+                handlers._viHandler(inputState, e);
                 rest.onInvalid && rest.onInvalid(e);
             };
             _props.onChange = (e, unknown?: { value: unknown } | string | number) => {
-                _updateInputHandler(formKey, e, unknown);
+                handlers._updateInputHandler(inputState, e, unknown);
                 rest.onChange && rest.onChange(e);
             };
         }
@@ -51,17 +62,26 @@ export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, elem
         );
     }, [inputState, element]);
 
-    const _fetchDeps = useMemo(() => fetchDeps.map(key => fields[key].value), [fields]);
+    // const selector = useMemo(() => makeSelectFields(fetchDeps), [fetchDeps]);
+    const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
+
+    const stableFetchDeps = useMemo(() => JSON.stringify(_fetchDeps), [_fetchDeps]);
 
     useEffect(() => {
         if (fetch) {
-            inputState.dispatchChanges = (changes: Partial<GInputState>) => _dispatchChanges(changes, formKey);
+            inputState.dispatchChanges = (changes: Partial<GInputState>) =>
+                handlers._dispatchChanges(changes, formKey);
+
             _debounce(debounce, `${inputState.gid}-fetch`).then(() => {
-                const res = fetch(inputState, fields);
-                res instanceof Promise ? res.then((state) => state && _dispatchChanges(state, formKey)) : res && _dispatchChanges(res, formKey);
+                const res = fetch(inputState, _fetchDeps);
+                if (res instanceof Promise) {
+                    res.then((state) => state && handlers._dispatchChanges(state, formKey));
+                } else {
+                    res && handlers._dispatchChanges(res, formKey);
+                }
             });
         }
-    }, _fetchDeps);
+    }, [stableFetchDeps]);
 
     return _element;
 });
