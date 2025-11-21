@@ -1,4 +1,4 @@
-import React, {forwardRef, memo, ReactNode, useEffect, useMemo} from 'react';
+import React, {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 import {TextInput} from 'react-native';
 
 import {_debounce} from '../helpers';

@@ -1,4 +1,4 @@
-import React, {InputHTMLAttributes, HTMLInputTypeAttribute, ReactNode} from 'react';
+import type {InputHTMLAttributes, HTMLInputTypeAttribute, ReactNode} from 'react';
 import type { IForm } from '../form';
 import type { TextInputProps } from 'react-native';
 

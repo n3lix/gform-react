@@ -1,7 +1,6 @@
-import {
+import type {
     Dispatch,
     HTMLAttributes,
-    MutableRefObject,
     ReactNode,
     SetStateAction,
     HTMLInputTypeAttribute,
@@ -17,7 +16,7 @@ import {
     InputHTMLAttributes,
     FC,
     ClipboardEvent,
-    RefObject, DetailedHTMLProps, FormHTMLAttributes
+    RefObject, DetailedHTMLProps, FormHTMLAttributes, Ref
 } from "react";
 
 export type RawData<T> = {
@@ -195,7 +194,7 @@ export type GInputProps = BaseGenericFieldProps & Omit<InputHTMLAttributes<HTMLI
         element?: GInputElementHandler<string>;
     });
 
-export declare const GInput: FC<GInputProps & {ref?: MutableRefObject<HTMLElement | null>}>;
+export declare const GInput: FC<GInputProps & {ref?: Ref<HTMLElement | null>}>;
 
 export type GFormState<T> = IForm<T>
     &
@@ -204,16 +203,12 @@ export type GFormState<T> = IForm<T>
         isValid: boolean;
         /**indicates whether the form is invalid */
         isInvalid: boolean;
-        /**returns the loading state */
-        loading: boolean;
         /**returns an object with key value pairs represents the form*/
         toRawData(options?: ToRawDataOptions<T>): RawData<T>;
         /**returns `FormData` instance represents the form*/
         toFormData(options?: ToFormDataOptions<T>): FormData;
         /**returns `URLSearchParams` instance represents the form*/
         toURLSearchParams(options?: ToURLSearchParamsOptions<T>): URLSearchParams;
-        /**update the loading state */
-        setLoading: Dispatch<SetStateAction<boolean>>;
         /**update the validity state (invokes all defined validators) */
         checkValidity(): boolean;
         /**manually dispatch any changes to input(s) */
@@ -260,8 +255,6 @@ export declare class GValidator<T = any> {
 
 export type GFormProps<T> = Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'children'> & {
     children?: ReactNode | ReactNode[] | ((state: GFormState<T>) => ReactNode | ReactNode[]);
-    /** @param loader - a component to display while loading (optional). */
-    loader?: ReactNode;
     /** @param stateRef - pass a ref which will points to the current state of the form (optional). */
     stateRef?: RefObject<GFormState<T> | undefined>;
     /** @param onSubmit - a handler for the form submission (optional). */
@@ -279,7 +272,7 @@ export type GFormProps<T> = Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormEl
      * @optional
     */
     optimized?: boolean;
-    ref?: MutableRefObject<HTMLFormElement | null>;
+    ref?: Ref<HTMLFormElement | null>;
 };
 
 /**
@@ -287,4 +280,4 @@ export type GFormProps<T> = Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormEl
  * @link Docs - https://gform-react.onrender.com
  * @link Npm - https://www.npmjs.com/package/gform-react
  */
-export const GForm: <T extends any>({loader,stateRef,onSubmit,onChange,children,validators,onInit,optimized,...rest}: GFormProps<T>) => JSX.Element;
+export const GForm: <T extends any>({stateRef,onSubmit,onChange,children,validators,onInit,optimized,...rest}: GFormProps<T>) => JSX.Element;
