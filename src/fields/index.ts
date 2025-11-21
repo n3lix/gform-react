@@ -2,8 +2,8 @@ import type {InputHTMLAttributes, HTMLInputTypeAttribute, ReactNode} from 'react
 import type { IForm } from '../form';
 import type { TextInputProps } from 'react-native';
 
-export * from './GInput';
-export * from './RNGInput';
+export {GInput} from './GInput';
+export {RNGInput} from './RNGInput';
 
 export type BaseGenericFieldProps = {
     /** the key which is used to identify the input */

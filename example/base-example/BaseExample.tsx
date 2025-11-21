@@ -1,36 +1,11 @@
-import React, {FC, useCallback, useRef, useState} from 'react';
-
-import {SignUpForm, validators} from '../validators';
-import {GInput} from '@generic-form/fields';
-import Tabs, {Tab} from '../tabs';
+import React, {useCallback, useRef, useState} from "react";
+import Tabs from "../tabs/Tabs";
+import {Tab} from "../tabs";
 import {GForm} from "../../src/GForm";
+import {SignUpForm, validators} from "../validators";
+import {GInput} from "../../src/fields/GInput";
 
-const APIService = {
-    fetchCities: () => new Promise((res, rej) => {
-        setTimeout(() => {
-            res([
-                {name: 'New York'},
-                {name: 'Rome'},
-                {name: 'London'},
-                {name: 'Istanbul'},
-                {name: 'Paris'},
-            ]);
-        }, 1500);
-    }),
-    fetchStreets: (city: string) => new Promise((res, rej) => {
-        const streets: { [key: string]: any[] } = {
-            'new york': [{name: 'Broadway'}, {name: 'Park Avenue'}],
-            'rome': [{name: 'Via Vittorio Veneto'}, {name: 'Gianicolo Promenade'}],
-            'london': [{name: 'Oxford Street'}, {name: 'Abbey Road'}],
-            'istanbul': [{name: 'Istiklal Street'}, {name: 'Cukurcuma Caddesi'}],
-            'paris': [{name: 'Avenue des Champs-Élysées'}, {name: 'Rue de Rivoli'}],
-        };
-        setTimeout(() => {
-            res(streets[city]);
-        }, 1500);
-    })
-};
-const NativeExample: FC = () => {
+const BaseExample = () => {
     const [c, setC] = useState(0);
 
     const ref = useRef<HTMLFormElement>(null);
@@ -48,10 +23,10 @@ const NativeExample: FC = () => {
                 <GForm<SignUpForm> ref={ref} onInit={(state) => {
                     console.log(state);
                 }} validators={validators}
-                    onSubmit={(state, e) => {
-                    // e.preventDefault();
-                    console.log(state);
-                }}>
+                                   onSubmit={(state, e) => {
+                                       // e.preventDefault();
+                                       console.log(state);
+                                   }}>
                     {(state) => <>
                         <GInput formKey={'email'}
                                 id="email"
@@ -117,4 +92,4 @@ const NativeExample: FC = () => {
     );
 };
 
-export default NativeExample;
+export default BaseExample;
