@@ -1,15 +1,9 @@
-import React, {
-    createContext,
-    FC,
-    PropsWithChildren,
-    useCallback,
-    useContext,
-    useRef,
-    useSyncExternalStore
-} from 'react';
+import React, {createContext, useCallback, useContext, useRef, useSyncExternalStore} from 'react';
+import type {FC, PropsWithChildren} from 'react';
+
 import {useFormHandlers} from "./useFormHandlers";
-import {InitialState, Store} from "./state";
-import {GValidators} from "./validations";
+import type {InitialState, Store} from "./state";
+import type {GValidators} from "./validations";
 
 const GFormContext = createContext<Store>({} as Store);
 
@@ -42,6 +36,22 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, 
     return <GFormContext.Provider value={store.current}>{children}</GFormContext.Provider>;
 };
 
+export const useFormStore = () => {
+    const store = useContext(GFormContext);
+    if (!store) throw new Error('useGFormStore must be used within `GForm` component');
+    return store;
+};
+
+export const useFormSelector = <T extends any>(selector: (state: InitialState) => T): T => {
+    const store = useFormStore();
+
+    return useSyncExternalStore(
+        store.subscribe,
+        () => selector(store.getState()),
+        () => selector(store.getState()) // for SSR
+    );
+};
+
 export function createSelector<
     State=InitialState,
     Selectors extends Array<(state: State) => any> = [],
@@ -68,19 +78,3 @@ export function createSelector<
         return lastResult;
     };
 }
-
-export const useFormStore = () => {
-    const store = useContext(GFormContext);
-    if (!store) throw new Error('useGFormStore must be used within `GForm` component');
-    return store;
-};
-
-export const useFormSelector = <T extends any>(selector: (state: InitialState) => T): T => {
-    const store = useFormStore();
-
-    return useSyncExternalStore(
-        store.subscribe,
-        () => selector(store.getState()),
-        () => selector(store.getState()) // for SSR
-    );
-};
