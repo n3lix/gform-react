@@ -13,12 +13,13 @@ it doesn't matter which UI library you're using,
 it only cares about the form and the inputs inside.
 
 ## Pros
-* Lightweight, no dependencies
+* Lightweight
 * Based on native form and constraint validations (can also add custom and async validations)
 * Can be used with any UI library that preserves native form controls (input, button, etc. can also be adjusted to non-native controls)
 * Tree shakeable
-* Accessiblity semi-automatic (required inputs and invalid inputs automatically sets aria-required and aria-invalid)
+* Accessibility semi-automatic (required inputs and invalid inputs automatically sets aria-required and aria-invalid)
 * React Native support
+* Supports React 19, Next.js 15
 
 ## Docs
 https://gform-react.onrender.com
@@ -38,4 +39,4 @@ yarn add gform-react
 ```
 
 #### NOTE:
-react >=16.8.0, react-dom >=16.8.0 are peer dependecies
+react >=16.8.0, react-dom >=16.8.0 are peer dependencies

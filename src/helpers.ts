@@ -1,6 +1,7 @@
 import type { GInputInitialState, GInputProps, GInputState, GInputStateMutable } from './fields';
 import type { GChangeEvent, GDOMElement, IForm } from './form';
-import type { GFormState, InitialState, RawData, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions } from './state';
+import type {GFormState, InitialState, RawData, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
+import type {ReactElement, ReactNode} from "react";
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
 
@@ -17,7 +18,7 @@ const typeValueDict: { [key: string]: keyof HTMLFormElement | GDOMElement } = {
 
 const generateId = () => (+new Date()).toString(36) + (1 - Math.random()).toString(36).substring(2, 16);
 
-export const _buildFormInitialValues = <T>(rows: JSX.Element | JSX.Element[] = []) => {
+export const _buildFormInitialValues = <T>(rows: ReactNode | ReactNode[] = []): InitialState<T> => {
     const fields: { [key: string]: GInputInitialState } = {};
 
     if (!Array.isArray(rows)) rows = [rows];
@@ -26,8 +27,8 @@ export const _buildFormInitialValues = <T>(rows: JSX.Element | JSX.Element[] = [
         console.log('[buildFormInitialValues] -', 'building initial values for ', rows);
     }
 
-    rows.forEach(row => {
-        const inputConfigs = _findInputs(row);
+    for (const row of rows) {
+        const inputConfigs = _findInputs(row as any);
 
         inputConfigs.forEach(config => {
             if (__DEBUG__) {
@@ -64,17 +65,19 @@ export const _buildFormInitialValues = <T>(rows: JSX.Element | JSX.Element[] = [
                 if (typeof fields[config.formKey][key] === 'undefined') delete fields[config.formKey][key];
             });
         });
-    });
-    return { state: { fields, loading: false } as InitialState<T>, key: generateId() };
+    }
+
+    return { fields: fields as IForm<T>, key: generateId() };
 };
 
-const _findInputs = (root?: JSX.Element | JSX.Element[] | undefined[], total: (GInputProps & GInputStateMutable)[] = []): (GInputProps & GInputStateMutable)[] => {
+const _findInputs = (root?: ReactElement<any> | ReactElement<any>[] | undefined[], total: (GInputProps & GInputStateMutable)[] = []): (GInputProps & GInputStateMutable)[] => {
     if (!root) return total;
 
     if (Array.isArray(root)) {
         root.forEach(element => _findInputs(element, total));
         return total;
     }
+
 
     if (root.props?.formKey) {
         if (__DEBUG__) {
@@ -97,6 +100,28 @@ export const _findValidityKey = (validity: Partial<ValidityState>): keyof Validi
         }
     }
 };
+
+export const _checkTypeMismatch = (input: GInputState<any>) => {
+    const value = input.value?.toString().trim();
+    if (!value) return false;
+
+    switch (input.type) {
+        case 'email':
+            return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); // basic email pattern
+        case 'url':
+            try {
+                new URL(value);
+                return false;
+            } catch {
+                return true;
+            }
+        case 'tel':
+            return !/^\+?[0-9\s\-().]{7,}$/.test(value); // basic phone pattern
+        default:
+            return false;
+    }
+};
+
 
 export const hasSubmitter = (form?: HTMLFormElement | null): boolean => {
     if (!form) return false;
@@ -133,7 +158,7 @@ export const _toRawData = <T>(fields: IForm<T> & { [key: string]: GInputState<an
     if (transform) {
         for (const key in transform) {
             const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-            data[key] = set(fields[key]?.value);
+            data[key] = set(fields[key]?.value || fields[key]);
         }
     }
 

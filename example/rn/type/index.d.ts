@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, ReactNode, SetStateAction, FC } from "react";
+import type {RefObject, ReactNode, FC, Ref} from "react";
 import type {TextInputProps, View, ViewProps} from 'react-native';
 import type {BaseGenericFieldProps, GInputState, GInputStateMutable, GValidators, IForm, PartialForm, RawData, ToRawDataOptions, ToURLSearchParamsOptions} from '../../dist';
 
@@ -41,14 +41,10 @@ export type RNGFormState<T> = IForm<T>
         isValid: boolean;
         /**indicates whether the form is invalid */
         isInvalid: boolean;
-        /**returns the loading state */
-        loading: boolean;
         /**returns an object with key value pairs represents the form*/
         toRawData(options?: ToRawDataOptions<T>): RawData<T>;
         /**returns `URLSearchParams` instance represents the form*/
         toURLSearchParams(options?: ToURLSearchParamsOptions<T>): URLSearchParams;
-        /**update the loading state */
-        setLoading: Dispatch<SetStateAction<boolean>>;
         /**update the validity state (invokes all defined validators) */
         checkValidity(): boolean;
         /**manually dispatch any changes to input(s) */
@@ -60,13 +56,13 @@ export type RNGFormProps<T> = Omit<ViewProps, 'children'> & {
     /** @param loader - a component to display while loading (optional). */
     loader?: ReactNode;
     /** @param stateRef - pass a ref which will points to the current state of the form (optional). */
-    stateRef?: MutableRefObject<RNGFormState<T> | undefined>;
+    stateRef?: RefObject<RNGFormState<T> | undefined>;
     /** @param validators - an object for handling validations (optional). */
     validators?: GValidators<T>;
     /** @param onInit - execute a handler once the form has initialized (optional). */
     onInit?: (state: RNGFormState<T>) => void | PartialForm<T> | Promise<void | PartialForm<T>>;
     el: FC<ViewProps>;
-    ref?: MutableRefObject<View | null>;
+    ref?: Ref<View | null>;
 };
 
 /**
@@ -74,4 +70,4 @@ export type RNGFormProps<T> = Omit<ViewProps, 'children'> & {
  * @link Docs - https://gform-react.onrender.com
  * @link Npm - https://www.npmjs.com/package/gform-react
  */
-export const RNGForm: <T extends any>({loader,stateRef,children,validators,onInit,...rest}: RNGFormProps<T>) => JSX.Element;
+export const RNGForm: <T extends any>({stateRef,children,validators,onInit,...rest}: RNGFormProps<T>) => JSX.Element;

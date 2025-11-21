@@ -1,12 +1,33 @@
-import React, { forwardRef, useEffect, useMemo } from 'react';
+import React, {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 
-import { useGenericFormContext } from "../context";
-import { _debounce } from '../helpers';
-import type { GInputProps, GInputState, GElementProps } from '.';
+import {_debounce} from '../helpers';
+import type {GInputProps, GInputState, GElementProps} from '.';
+import {useFormSelector, useFormStore} from "../form-context";
+import {makeSelectFields} from "../selectors";
 
-export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, element, title, type, validatorKey, fetch, fetchDeps = [], optimized, defaultChecked, defaultValue, checked, value, debounce=300, ...rest }, ref) => {
-    const { state: { fields }, _updateInputHandler, _dispatchChanges, optimized: formOptimized, _viHandler } = useGenericFormContext();
-    const inputState = fields[formKey];
+const _GInput = forwardRef<HTMLInputElement, GInputProps>(({
+    formKey,
+    element,
+    title,
+    type = 'text',
+    fetch,
+    fetchDeps,
+    optimized,
+    debounce = 300,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    defaultChecked,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    defaultValue,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    checked,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    validatorKey,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    value,
+    ...rest
+}, ref) => {
+    const inputState = useFormSelector(state => state.fields[formKey]);
+    const store = useFormStore();
 
     const _element = useMemo(() => {
         let value: any, checked;
@@ -26,24 +47,36 @@ export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, elem
             title: title || inputState.errorText
         };
 
-        if (!formOptimized || !optimized) {
-            _props.onBlur = (e) => {
-                _viHandler(inputState, e);
-                rest.onBlur && rest.onBlur(e);
-            };
-            _props.onInvalid = (e) => {
-                e.preventDefault(); // hide default browser validation tooltip
-                _viHandler(inputState, e);
-                rest.onInvalid && rest.onInvalid(e);
-            };
-            _props.onChange = (e, unknown?: { value: unknown } | string | number) => {
-                _updateInputHandler(formKey, e, unknown);
-                rest.onChange && rest.onChange(e);
-            };
+        if (!store.handlers.optimized || !optimized) {
+            _props.onBlur = rest.onBlur ?
+                (e) => {
+                    store.handlers._viHandler(inputState, e);
+                    rest.onBlur!(e);
+                } : (e) => {
+                    store.handlers._viHandler(inputState, e);
+                };
+
+            _props.onInvalid = rest.onInvalid ?
+                (e) => {
+                    e.preventDefault(); // hide default browser validation tooltip
+                    store.handlers._viHandler(inputState, e);
+                    rest.onInvalid!(e);
+                } : (e) => {
+                    e.preventDefault(); // hide default browser validation tooltip
+                    store.handlers._viHandler(inputState, e);
+                };
+
+            _props.onChange = rest.onChange ?
+                (e, unknown?: { value: unknown } | string | number) => {
+                    store.handlers._updateInputHandler(inputState, e, unknown);
+                    rest.onChange!(e);
+                } : (e, unknown?: { value: unknown } | string | number) => {
+                    store.handlers._updateInputHandler(inputState, e, unknown);
+                };
         }
 
         if (element) {
-            return (element as (input: GInputState, props: GElementProps<typeof value>) => JSX.Element)(inputState, _props);
+            return (element as (input: GInputState, props: GElementProps<typeof value>) => ReactNode)(inputState, _props);
         }
 
         return (
@@ -51,17 +84,23 @@ export const GInput = forwardRef<HTMLInputElement, GInputProps>(({ formKey, elem
         );
     }, [inputState, element]);
 
-    const _fetchDeps = useMemo(() => fetchDeps.map(key => fields[key].value), [fields]);
+    const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
+    const stableFetchDeps = useMemo(() => JSON.stringify(_fetchDeps), [_fetchDeps]);
 
     useEffect(() => {
         if (fetch) {
-            inputState.dispatchChanges = (changes: Partial<GInputState>) => _dispatchChanges(changes, formKey);
             _debounce(debounce, `${inputState.gid}-fetch`).then(() => {
-                const res = fetch(inputState, fields);
-                res instanceof Promise ? res.then((state) => state && _dispatchChanges(state, formKey)) : res && _dispatchChanges(res, formKey);
+                const res = fetch(inputState, store.getState().fields);
+                if (res instanceof Promise) {
+                    res.then((state) => state && store.handlers._dispatchChanges(state, formKey));
+                } else if (res) {
+                    store.handlers._dispatchChanges(res, formKey);
+                }
             });
         }
-    }, _fetchDeps);
+    }, [stableFetchDeps]);
 
     return _element;
 });
+
+export const GInput = memo(_GInput);
