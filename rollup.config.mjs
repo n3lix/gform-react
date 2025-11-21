@@ -3,7 +3,7 @@ import replace from '@rollup/plugin-replace';
 import terser from '@rollup/plugin-terser';
 import babel from '@rollup/plugin-babel';
 import nodeResolve from '@rollup/plugin-node-resolve';
-import packageJson from './package.json' assert { type: "json" };
+import packageJson from './package.json' with { type: "json" };
 import copy from 'rollup-plugin-copy';
 
 const { build } = process.env;

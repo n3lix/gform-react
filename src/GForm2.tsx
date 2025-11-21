@@ -1,58 +1,34 @@
 import React, {
-    type ChangeEvent,
-    Children,
-    type ClipboardEvent,
-    type FC,
-    type FormEvent,
-    forwardRef, useCallback, useEffect,
-    useMemo,
-    useRef
+    DetailedHTMLProps, FormHTMLAttributes, forwardRef,
+    KeyboardEvent, useCallback, useEffect, useMemo, useRef
 } from "react";
-import {useFormSelector, GFormContextProvider, useFormStore, createSelector} from "./form-context";
-import {
-    _buildFormInitialValues,
-    _merge,
-    _toFormData,
-    _toRawData,
-    _toURLSearchParams, hasSubmitter
-} from "./helpers";
+import type {ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject} from "react";
+
+import {selectFirstInvalidField} from "./selectors";
+import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
+import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchParams, hasSubmitter} from "./helpers";
 import type {GFormState, ToRawDataOptions} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
-import {GFormProps} from "./GForm";
+import type {GValidators} from "@generic-form/validations";
 
-const selectFields = [(state) => state.fields];
-
-export const selectFirstInvalidField =
-    createSelector(
-        selectFields,
-        (fields) => {
-            for (const f in fields) {
-                if (fields[f].error) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    );
-
-export const FormRenderer: <T extends any>(props: GFormProps<T>) => ReturnType<FC<GFormProps<T>>> = (<T extends any>() => {
-    return forwardRef<HTMLFormElement, GFormProps<T>>(({
-                                                           loader = <div>loading</div>,
-                                                           stateRef,
-                                                           onSubmit,
-                                                           onChange,
-                                                           onPaste,
-                                                           children,
-                                                           onInit,
-                                                           optimized,
-                                                           ...rest
-                                                       }, ref) => {
+export const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
+    <T, >({
+        stateRef,
+        onSubmit,
+        onChange,
+        onPaste,
+        onKeyDown,
+        onKeyUp,
+        children,
+        onInit,
+        ...rest
+    }: GFormProps<T>, ref: React.Ref<HTMLFormElement>) => {
         const formRef = useRef<HTMLFormElement | null>(null);
         const {getState, handlers} = useFormStore();
         const isFormInvalid = useFormSelector(selectFirstInvalidField);
 
-        const refHandler = (element: HTMLFormElement | null) => {
+        const refHandler = useCallback((element: HTMLFormElement | null) => {
             if (ref) {
                 if (typeof ref === 'function') {
                     ref(element);
@@ -61,10 +37,11 @@ export const FormRenderer: <T extends any>(props: GFormProps<T>) => ReturnType<F
                 }
             }
             formRef.current = element;
-        };
+        }, [ref]);
 
         const getFormState = useCallback(() => {
-            const fields = getState().fields;
+            const fields = getState<T>().fields;
+
             const formState: GFormState<T> = {
                 ...fields,
                 isValid: !isFormInvalid,
@@ -72,7 +49,7 @@ export const FormRenderer: <T extends any>(props: GFormProps<T>) => ReturnType<F
                 toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
                 toFormData: () => _toFormData(formRef.current),
                 toURLSearchParams: _toURLSearchParams,
-                checkValidity: function () { // it has to be function in order to refer to 'this'
+                checkValidity: function () { // it has to be a function in order to refer to 'this'
                     this.isValid = formRef.current && formRef.current.checkValidity() || false;
                     this.isInvalid = !this.isValid;
                     return this.isValid;
@@ -103,36 +80,65 @@ export const FormRenderer: <T extends any>(props: GFormProps<T>) => ReturnType<F
                 }
             };
 
-            let _onPaste;
+            let _onPaste, _onChange, _onKeyDown, _onKeyUp;
+
             if (onPaste) {
                 _onPaste = (e: ClipboardEvent<HTMLFormElement>) => onPaste(state, e);
             }
 
-            return optimized
-                ?
-                <form
-                    {...rest}
-                    ref={refHandler}
-                    onPaste={_onPaste}
-                    onBlur={(e: GChangeEvent<HTMLFormElement>) => {
-                        handlers._viHandler(state[e.target.name], e);
-                    }}
-                    onInvalid={(e: ChangeEvent<HTMLFormElement>) => {
-                        e.preventDefault(); // hide default browser validation tooltip
-                        handlers._viHandler(state[e.target.name], e);
-                    }}
-                    onChange={(e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
+            if (onKeyDown) {
+                _onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => onKeyDown(state, e);
+            }
+
+            if (onKeyUp) {
+                _onKeyUp = (e: KeyboardEvent<HTMLFormElement>) => onKeyUp(state, e);
+            }
+
+            if (handlers.optimized) {
+                if (onChange) {
+                    _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
                         handlers._updateInputHandler(state[e.target.name], e, unknown);
-                        onChange && onChange(e);
-                    }}
-                    onSubmit={_onSubmit}>
+                        onChange(state, e);
+                    };
+                } else {
+                    _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
+                        handlers._updateInputHandler(state[e.target.name], e, unknown);
+                    };
+                }
+                return (
+                    <form
+                        {...rest}
+                        ref={refHandler}
+                        onPaste={_onPaste}
+                        onKeyDown={_onKeyDown}
+                        onKeyUp={_onKeyUp}
+                        onBlur={(e: GChangeEvent<HTMLFormElement>) => handlers._viHandler(state[e.target.name], e)}
+                        onInvalid={(e: ChangeEvent<HTMLFormElement>) => {
+                            e.preventDefault(); // hide default browser validation tooltip
+                            handlers._viHandler(state[e.target.name], e);
+                        }}
+                        onChange={_onChange}
+                        onSubmit={_onSubmit}>
+                        {formChildren}
+                    </form>
+                );
+            }
+
+            if (onChange) {
+                _onChange = (e: GChangeEvent<HTMLFormElement>) => onChange(state, e);
+            }
+
+            return (
+                <form {...rest} 
+                    ref={refHandler} 
+                    onSubmit={_onSubmit} 
+                    onChange={_onChange} 
+                    onPaste={_onPaste} 
+                    onKeyDown={_onKeyDown} 
+                    onKeyUp={_onKeyUp}>
                     {formChildren}
                 </form>
-                :
-                <form {...rest} onChange={(e) => onChange && onChange(e)} ref={refHandler} onSubmit={_onSubmit}
-                      onPaste={_onPaste}>
-                    {formChildren}
-                </form>;
+            );
         }, [children, getFormState]);
 
         useEffect(() => {
@@ -150,11 +156,13 @@ export const FormRenderer: <T extends any>(props: GFormProps<T>) => ReturnType<F
                             [key: string]: GInputState;
                         }>({}, state, _c)
                     });
-                    changes instanceof Promise ? changes.then(_handler) : _handler(changes);
+                    if (changes instanceof Promise) {
+                        changes.then(_handler);
+                    } else _handler(changes);
                 }
             }
 
-            const dipatchers: Record<string, Record<string, (changes: Partial<GInputState>) => void>> = {};
+            const dispatchers: Record<string, Record<string, (changes: Partial<GInputState>) => void>> = {};
 
             if (__DEBUG__) {
                 console.log('checking for initial values');
@@ -162,7 +170,7 @@ export const FormRenderer: <T extends any>(props: GFormProps<T>) => ReturnType<F
             const fields = getState().fields;
 
             for (const fieldKey in fields) {
-                dipatchers[fieldKey] = {
+                dispatchers[fieldKey] = {
                     dispatchChanges: (changes: Partial<GInputState>) => handlers._dispatchChanges(changes, fieldKey)
                 };
 
@@ -181,25 +189,64 @@ export const FormRenderer: <T extends any>(props: GFormProps<T>) => ReturnType<F
                  */
                 handlers._viHandler(field);
             }
-            handlers._dispatchChanges({fields: _merge(dipatchers, state)});
+            handlers._dispatchChanges({fields: _merge(dispatchers, state)});
         }, []);
 
         return formComponent;
-    });
-})();
+    }
+) as <T>(props: GFormProps<T> & { ref?: React.Ref<HTMLFormElement> }) => React.ReactElement | null;
 
-export const GForm2 = ({children, validators, ...props}) => {
-    const childrenArray = useMemo(() => Children.toArray(children), [children]);
-
-    const initialState = useMemo(() => {
-        return _buildFormInitialValues<T>(typeof children === 'function' ? children({} as GFormState<T>) : children);
-    }, [childrenArray]);
-
-    return (
-        <GFormContextProvider key={initialState.key} initialState={initialState} validators={validators}>
-            <FormRenderer childrenArray={childrenArray} {...props}>
-                {children}
-            </FormRenderer>
-        </GFormContextProvider>
-    );
+export type GFormProps<T> =
+    Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'onKeyUp' | 'onKeyDown' | 'children'>
+    & {
+    children?: ReactNode | ReactNode[] | ((state: GFormState<T>) => ReactNode | ReactNode[]);
+    /** @param loader - a component to display while loading (optional). */
+    loader?: ReactNode;
+    /** @param stateRef - pass a ref which will points to the current state of the form (optional). */
+    stateRef?: RefObject<GFormState<T> | undefined>;
+    /** @param onSubmit - a handler for the form submission (optional). */
+    onSubmit?: (state: GFormState<T>, e: FormEvent<HTMLFormElement>) => void;
+    /** @param onChange - register onChange handler (optional). */
+    onChange?: (state: GFormState<T>, e: FormEvent<HTMLFormElement>) => void;
+    /** @param onPaste - register onPaste handler (optional). */
+    onPaste?: (state: GFormState<T>, e: ClipboardEvent<HTMLFormElement>) => void;
+    /** @param onKeyUp - register onKeyUp handler (optional). */
+    onKeyUp?: (state: GFormState<T>, e: KeyboardEvent<HTMLFormElement>) => void;
+    /** @param onKeyDown - register onKeyDown handler (optional). */
+    onKeyDown?: (state: GFormState<T>, e: KeyboardEvent<HTMLFormElement>) => void;
+    /** @param validators - an object for handling validations (optional). */
+    validators?: GValidators<T>;
+    /** @param onInit - execute a handler once the form has initialized (optional). */
+    onInit?: (state: GFormState<T>) => void | PartialForm<T> | Promise<void | PartialForm<T>>;
+    /** @param optimized - enable optimization by registering the required handlers on the form itself.
+     * @see {@link https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Building_blocks/Events#event_delegation|EventDelegation}
+     * @optional
+     */
+    optimized?: boolean;
 };
+
+/**
+ * build dynamic forms with validations.
+ * @link Docs - https://gform-react.onrender.com
+ * @link Npm - https://www.npmjs.com/package/gform-react
+ */
+export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(
+    <T, >({children, validators, optimized, ...props}: GFormProps<T>, ref: React.Ref<HTMLFormElement>) => {
+        const initialState = useMemo(() => {
+            return _buildFormInitialValues(
+                typeof children === 'function'
+                    ? children({} as GFormState<T>)
+                    : children
+            );
+        }, [children]);
+
+        return (
+            <GFormContextProvider key={initialState.key} initialState={initialState} validators={validators}
+                optimized={optimized}>
+                <FormRenderer ref={ref} {...props}>
+                    {children}
+                </FormRenderer>
+            </GFormContextProvider>
+        );
+    }
+) as <T>(props: GFormProps<T> & { ref?: React.Ref<HTMLFormElement> }) => React.ReactElement | null;

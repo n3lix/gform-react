@@ -1,6 +1,6 @@
 import type { GInputInitialState, GInputProps, GInputState, GInputStateMutable } from './fields';
 import type { GChangeEvent, GDOMElement, IForm } from './form';
-import type { GFormState, RawData, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions } from './state';
+import type {GFormState, InitialState, RawData, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
 import type {ReactElement, ReactNode} from "react";
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
@@ -18,7 +18,7 @@ const typeValueDict: { [key: string]: keyof HTMLFormElement | GDOMElement } = {
 
 const generateId = () => (+new Date()).toString(36) + (1 - Math.random()).toString(36).substring(2, 16);
 
-export const _buildFormInitialValues = <T>(rows: ReactNode | ReactNode[] = []) => {
+export const _buildFormInitialValues = <T>(rows: ReactNode | ReactNode[] = []): InitialState<T> => {
     const fields: { [key: string]: GInputInitialState } = {};
 
     if (!Array.isArray(rows)) rows = [rows];
@@ -67,7 +67,7 @@ export const _buildFormInitialValues = <T>(rows: ReactNode | ReactNode[] = []) =
         });
     }
 
-    return { fields, key: generateId() };
+    return { fields: fields as IForm<T>, key: generateId() };
 };
 
 const _findInputs = (root?: ReactElement<any> | ReactElement<any>[] | undefined[], total: (GInputProps & GInputStateMutable)[] = []): (GInputProps & GInputStateMutable)[] => {
@@ -101,7 +101,7 @@ export const _findValidityKey = (validity: Partial<ValidityState>): keyof Validi
     }
 };
 
-export const _checkTypeMismatch = (input) => {
+export const _checkTypeMismatch = (input: GInputState<any>) => {
     const value = input.value?.toString().trim();
     if (!value) return false;
 

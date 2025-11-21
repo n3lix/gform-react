@@ -2,9 +2,9 @@ import {_checkResult, _checkTypeMismatch, _debounce, _extractValue, _findValidit
 import {type GInputValidator, type GValidators} from "./validations";
 import type {GInputState} from "./fields";
 import type {GChangeEvent, GDOMElement, GFocusEvent, GFormEvent, GInvalidEvent} from "./form";
-import type {InitialState} from "./state";
+import type {InitialState, Store} from "./state";
 
-export const useFormHandlers = (getState, setState, validators: GValidators<T> = {}, optimized = false) => {
+export const useFormHandlers = (getState: Store['getState'], setState: Store['setState'], validators: GValidators = {}, optimized = false) => {
     /**
      * handler for validating a form input
      * @param input the input to be validated
@@ -77,13 +77,15 @@ export const useFormHandlers = (getState, setState, validators: GValidators<T> =
      * @param e the event object
      * @param unknown
      */
-    const _updateInputHandler = (input: GInputState, e?: GChangeEvent<GDOMElement | HTMLFormElement>, unknown?: { value: unknown } | string | number): void => {
+    const _updateInputHandler = (input: GInputState, e?: GChangeEvent<GDOMElement | HTMLFormElement>, unknown?: {
+        value: unknown
+    } | string | number): void => {
         input.value = _extractValue(e, unknown) as GInputState['value'];
         _viHandler(input, e);
     };
 
     /**
-     * Validates the input and updates the state with the raaaaaaaesult
+     * Validates the input and updates the state with the result
      * @param input the input to be validated
      * @param validityKey the `Constraint Validation` key
      * @param setValidity
@@ -94,21 +96,23 @@ export const useFormHandlers = (getState, setState, validators: GValidators<T> =
             console.log('[validateInput] -', 'validating input:', input.formKey, `(${validityKey ? validityKey : 'custom'})`);
         }
 
-        inputValidator && __validateInput(input, inputValidator, validityKey, setValidity);
+        if (inputValidator) {
+            __validateInput(input, inputValidator, validityKey, setValidity);
+        }
         input.touched = true;
     };
 
-    const _dispatchChanges = (changes: Partial<InitialState<T>> | Partial<GInputState>, key?: string) => setState(prev => {
+    const _dispatchChanges = (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => setState(prev => {
         if (key) {
-            return { ...prev, fields: { ...prev.fields, [key]: { ...prev.fields[key], ...changes } } };
+            return {...prev, fields: {...prev.fields, [key]: {...prev.fields[key], ...changes}}};
         }
-        return { ...prev, ...changes };
+        return {...prev, ...changes};
     });
 
     /**
      * @internal
      */
-    const __validateInput = <T>(input: GInputState, inputValidator: GInputValidator<T>, validityKey?: keyof ValidityState, setValidity?: (e: string) => void): void => {
+    const __validateInput = (input: GInputState, inputValidator: GInputValidator<any>, validityKey?: keyof ValidityState, setValidity?: (e: string) => void): void => {
         if (__DEBUG__) {
             console.log('[_validateInput] -', `validating input (${input.formKey}) with handlers:`, inputValidator.handlers);
         }
@@ -151,8 +155,10 @@ export const useFormHandlers = (getState, setState, validators: GValidators<T> =
                     }
                     if (!input.error) input.errorText = '';
 
-                    _dispatchChanges({ error: input.error, errorText: input.errorText }, input.formKey);
-                    setValidity && setValidity(input.errorText);
+                    _dispatchChanges({error: input.error, errorText: input.errorText}, input.formKey);
+                    if (setValidity) {
+                        setValidity(input.errorText);
+                    }
                 };
 
                 if (__DEBUG__) {
@@ -163,5 +169,5 @@ export const useFormHandlers = (getState, setState, validators: GValidators<T> =
         }
     };
 
-    return { _updateInputHandler, _viHandler, _dispatchChanges, optimized, _createInputChecker: _checkInputManually };
+    return {_updateInputHandler, _viHandler, _dispatchChanges, optimized, _createInputChecker: _checkInputManually};
 };

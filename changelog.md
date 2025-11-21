@@ -1,9 +1,11 @@
 ## 2.5.0
-* Added useFormSelector hook
 * Significantly improved performance
-* Fixed a bug with inputs type email where validation check didn't run
+* Added useFormSelector hook
+* Added onKeyUp, onKeyDown events with state access
+* Removed loading and setLoading
+* Fixed a bug with inputs type email where validation check didn't run for typeMismatch
 * Fixed a bug with initial form validation check (fields with initial values)
-
+* Fixed a bug where switching between 2 forms where state never reinitialized (keeps the old one)
 
 ## 2.0.1
 * Supports React 19 and Next.js 15

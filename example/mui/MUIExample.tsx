@@ -1,5 +1,5 @@
 import { GInput } from "@generic-form/fields";
-import { GForm } from "@generic-form/GForm";
+import { GForm } from "@generic-form/GForm2";
 import { Button, Checkbox, FormControl, FormControlLabel, FormGroup, FormHelperText, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import React, { FC } from "react";
 import { SignUpForm, validators } from "../validators";

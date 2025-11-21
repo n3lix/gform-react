@@ -1,36 +1,61 @@
-import React, {createContext, useCallback, useContext, useRef, useSyncExternalStore} from 'react';
+import React, {
+    createContext,
+    FC,
+    PropsWithChildren,
+    useCallback,
+    useContext,
+    useRef,
+    useSyncExternalStore
+} from 'react';
 import {useFormHandlers} from "./useFormHandlers";
+import {InitialState, Store} from "./state";
+import {GValidators} from "./validations";
 
-const NewGFormContext = createContext(null);
+const GFormContext = createContext<Store>({} as Store);
 
-export const GFormContextProvider = ({ children, initialState, validators }) => {
+type GFormContextProviderProps = PropsWithChildren & {
+    initialState: InitialState;
+    validators?: GValidators;
+    optimized?: boolean;
+}
+
+export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, initialState, validators, optimized }) => {
     const stateRef = useRef(initialState);
-    const listeners = useRef(new Set());
+    const listeners = useRef(new Set<() => void>());
 
-    const setState = useCallback((updater) => {
+    const setState = useCallback((updater: InitialState | ((state: InitialState) => InitialState)) => {
         stateRef.current = typeof updater === 'function' ? updater(stateRef.current) : updater;
         listeners.current.forEach((l) => l());
     }, []);
 
-    const handlers = useFormHandlers(() => stateRef.current, setState, validators, false);
+    const handlers = useFormHandlers(() => stateRef.current, setState, validators, optimized);
 
     const getState = useCallback(() => stateRef.current, []);
 
-    const subscribe = useCallback((listener) => {
+    const subscribe = useCallback((listener: () => void) => {
         listeners.current.add(listener);
         return () => listeners.current.delete(listener);
     }, []);
 
-    const store = useRef({ getState, setState, subscribe, handlers });
+    const store = useRef<Store>({ getState, setState, subscribe, handlers });
 
-    return <NewGFormContext.Provider value={store.current}>{children}</NewGFormContext.Provider>;
+    return <GFormContext.Provider value={store.current}>{children}</GFormContext.Provider>;
 };
 
-export const createSelector = (selectors, combiner) => {
-    let lastArgs = [];
-    let lastResult;
+export function createSelector<
+    State=InitialState,
+    Selectors extends Array<(state: State) => any> = [],
+    Result = any
+>(
+    selectors: Selectors,
+    combiner: (...args: {
+        [K in keyof Selectors]: Selectors[K] extends (state: State) => infer R ? R : never;
+    }) => Result
+): (state: State) => Result {
+    let lastArgs: any[] = [];
+    let lastResult: Result;
 
-    return (state) => {
+    return (state: State): Result => {
         const args = selectors.map(fn => fn(state));
         if (
             lastArgs.length === args.length &&
@@ -39,19 +64,18 @@ export const createSelector = (selectors, combiner) => {
             return lastResult;
         }
         lastArgs = args;
-        lastResult = combiner(...args);
+        lastResult = combiner(...args as any);
         return lastResult;
     };
-};
-
+}
 
 export const useFormStore = () => {
-    const store = useContext(NewGFormContext);
+    const store = useContext(GFormContext);
     if (!store) throw new Error('useGFormStore must be used within `GForm` component');
     return store;
 };
 
-export const useFormSelector = (selector) => {
+export const useFormSelector = <T extends any>(selector: (state: InitialState) => T): T => {
     const store = useFormStore();
 
     return useSyncExternalStore(
@@ -60,4 +84,3 @@ export const useFormSelector = (selector) => {
         () => selector(store.getState()) // for SSR
     );
 };
-

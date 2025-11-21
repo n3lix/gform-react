@@ -4,7 +4,9 @@ import type { GInputState, GInputStateMutable } from "./fields";
 export type PartialPick<T, P extends keyof T> = Omit<T, P> & Partial<Pick<T, P>>;
 
 export type IForm<T=any> = {
-    [key in keyof T]: PartialPick<GInputState<T[key]>, 'checkValidity'>;
+    [key in keyof T]: GInputState<T[key]>;
+} & {
+    [key: string]: GInputState<any>;
 };
 
 export type PartialForm<T> = Partial<{ [key in keyof T]: Partial<GInputStateMutable<T[key]>> }>;
