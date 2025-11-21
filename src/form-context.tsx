@@ -1,9 +1,10 @@
-import React, {createContext, useCallback, useContext, useRef, useSyncExternalStore} from 'react';
+import React, {createContext, useCallback, useContext, useEffect, useRef, useSyncExternalStore} from 'react';
 import type {FC, PropsWithChildren} from 'react';
 
 import {useFormHandlers} from "./useFormHandlers";
 import type {InitialState, Store} from "./state";
 import type {GValidators} from "./validations";
+import type {GInputState} from './fields';
 
 const GFormContext = createContext<Store>({} as Store);
 
@@ -29,6 +30,12 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, 
     const subscribe = useCallback((listener: () => void) => {
         listeners.current.add(listener);
         return () => listeners.current.delete(listener);
+    }, []);
+
+    useEffect(() => {
+        for (const fieldKey in initialState.fields) {
+            initialState.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>) => handlers._dispatchChanges(changes, fieldKey);
+        }
     }, []);
 
     const store = useRef<Store>({ getState, setState, subscribe, handlers });
