@@ -11,7 +11,8 @@ if (__DEV__) {
         pattern: 'withPatternMismatchMessage',
         min: 'withRangeUnderflowMessage',
         max: 'withRangeOverflowMessage',
-        step: 'withStepMismatchMessage'
+        step: 'withStepMismatchMessage',
+        type: 'withTypeMismatchMessage',
     };
     validityMap = {
         tooShort: 'minLength',
@@ -20,7 +21,8 @@ if (__DEV__) {
         patternMismatch: 'pattern',
         rangeOverflow: 'max',
         rangeUnderflow: 'min',
-        stepMismatch: 'step'
+        stepMismatch: 'step',
+        typeMismatch: 'type'
     };
 }
 
@@ -70,6 +72,10 @@ export class GValidator<T = any> {
         }
     }
 
+    public hasConstraint(constraint: keyof ValidityState): boolean {
+        return this.track?.includes(constraint) || false;
+    }
+
     /**register a `valueMissing` violation handler (use this with `required` attribute) */
     withRequiredMessage(message: string | GConstraintValidator): GValidator<T> {
         return this.__addConstraintValidationHandler('valueMissing', message);
@@ -105,7 +111,14 @@ export class GValidator<T = any> {
         return this.__addConstraintValidationHandler('rangeOverflow', message);
     }
 
-    /**register a `typeMismatch` violation handler */
+    /**
+     * register a `typeMismatch` violation handler<br />
+     * if its possible use `pattern` attribute (and `withPatternMismatchMessage`) or `custom validation` instead.<br/>
+     * use the `type` attribute to set the input's keyboard (for example type `'tel'` will show on mobile phones only numpads)
+     * and then with `pattern` or `custom validation` you can validate it.<br/>
+     * the reason for that is `type` is not a solid validation and likely will be replaced anyway.<br />
+     * if `pattern` or `custom` are used, then `withTypeMismatchMessage` is ignored
+     * */
     withTypeMismatchMessage(message: string | GConstraintValidator): GValidator<T> {
         return this.__addConstraintValidationHandler('typeMismatch', message);
     }
@@ -129,14 +142,14 @@ export class GValidator<T = any> {
     private __addConstraintValidationHandler(validityKey: keyof ValidityState, message: string | GConstraintValidator): GValidator<T> {
         if (__DEV__ && this.track) {
             if (this.track.includes(validityKey)) {
-                console.warn(`[Duplicate Handlers] - handler for '${validityKey}' has already been defined`);
+                console.warn(`DEV ONLY - [Duplicate Handlers] - handler for '${validityKey}' has already been defined`);
             }
             this.track.push(validityKey);
         }
         this._constraintHandlers.push((input, key) => {
             if (__DEV__) {
                 if (validityKey && validityMap[validityKey] && typeof input[validityMap[validityKey]] === 'undefined') {
-                    console.warn(`[Missing Prop] - the input '${input.formKey}' has registered validator for the violation '${validityKey}' but the input hasn't described the constraint '${validityMap[validityKey]}'.\nadd '${validityMap[validityKey]}' to the input props.\nexample:\n<GInput formKey='${input.formKey}' ${validityMap[validityKey]}={...} />\n\nor either remove '.${handlersMap[validityMap[validityKey]]}(...)' validation`);
+                    console.warn(`DEV ONLY - [Missing Prop] - the input '${input.formKey}' has registered validator for the violation '${validityKey}' but the input hasn't described the constraint '${validityMap[validityKey]}'.\nadd '${validityMap[validityKey]}' to the input props.\nexample:\n<GInput formKey='${input.formKey}' ${validityMap[validityKey]}={...} />\n\nor either remove '.${handlersMap[validityMap[validityKey]]}(...)' validation`);
                 }
             }
 

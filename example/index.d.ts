@@ -243,7 +243,14 @@ export declare class GValidator<T = any> {
     withRangeUnderflowMessage(message: string | GConstraintValidator): GValidator<T>;
     /**register a `rangeOverflow` violation handler (use this with `max` attribute) */
     withRangeOverflowMessage(message: string | GConstraintValidator): GValidator<T>;
-    /**register a `typeMismatch` violation handler */
+    /**
+     * register a `typeMismatch` violation handler<br />
+     * if its possible use `pattern` attribute (and `withPatternMismatchMessage`) or `custom validation` instead.<br/>
+     * use the `type` attribute to set the input's keyboard (for example type `'tel'` will show on mobile phones only numpads)
+     * and then with `pattern` or `custom validation` you can validate it.<br/>
+     * the reason for that is `type` is not a solid validation and likely will be replaced anyway.<br />
+     * if `pattern` or `custom` are used, then `withTypeMismatchMessage` is ignored
+     * */
     withTypeMismatchMessage(message: string | GConstraintValidator): GValidator<T>;
     /**register a `stepMismatch` violation handler (use this with `step` attribute)*/
     withStepMismatchMessage(message: string | GConstraintValidator): GValidator<T>;

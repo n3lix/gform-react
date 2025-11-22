@@ -36,7 +36,7 @@ export const _buildFormInitialValues = <T>(rows: ReactNode | ReactNode[] = []): 
             }
 
             if (__DEV__ && fields[config.formKey]) {
-                console.warn(`[Duplicate Keys] - field with key '${config.formKey}' has already been defined.`);
+                console.warn(`DEV ONLY - [Duplicate Keys] - field with key '${config.formKey}' has already been defined.`);
             }
 
             const { required = false, max, maxLength, min, minLength, step, pattern, type = 'text', defaultValue, value, checked, defaultChecked, formKey, debounce, validatorKey } = config;
@@ -90,8 +90,9 @@ const _findInputs = (root?: ReactElement<any> | ReactElement<any>[] | undefined[
     return _findInputs(root.props?.children, total);
 };
 
-export const _findValidityKey = (validity: Partial<ValidityState>): keyof ValidityState | undefined => {
+export const _findValidityKey = (validity: Partial<ValidityState>, exclude: (keyof ValidityState)[] = []): keyof ValidityState | undefined => {
     for (const key in validity) {
+        if (exclude.includes(key as keyof ValidityState)) continue;
         if (key !== 'valid' && validity[key as keyof ValidityState]) {
             if (__DEBUG__) {
                 console.log('[findValidityKey] -', 'found validity key:', key);

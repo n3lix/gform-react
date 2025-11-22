@@ -24,11 +24,13 @@ const test = (): Promise<[]> => new Promise((res) => {
 export const baseValidations = new GValidator()
     .withRequiredMessage('this field is required')
     .withMinLengthMessage((input) => `${input.formKey} must contain atleast ${input.minLength} chars`)
-    .withTypeMismatchMessage('mismatch');
 
 export const validators: GValidators<SignUpForm> = {
     '*': baseValidations,
-    email: baseValidations,
+    email: new GValidator(baseValidations).withCustomValidation((input) => {
+        input.errorText = `${input.formKey} pattern`;
+        return /asd/;
+    }),
     password: new GValidator<SignUpForm>(baseValidations)
         .withCustomValidation((input) => {
             input.errorText = `${input.formKey} must contain special char`;

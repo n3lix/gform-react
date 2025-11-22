@@ -10,7 +10,7 @@ const BaseExample = () => {
 
     const ref = useRef<HTMLFormElement>(null);
 
-    const renderInput = useCallback((input, props) => {
+    const renderInput = useCallback((input: any, props: any) => {
         return <div>
             <input {...props} />
             {input.error && <small>{input.errorText}</small>}
@@ -24,7 +24,7 @@ const BaseExample = () => {
                     console.log(state);
                 }} validators={validators}
                                    onSubmit={(state, e) => {
-                                       // e.preventDefault();
+                                       e.preventDefault();
                                        console.log(state);
                                    }}>
                     {(state) => <>
@@ -32,7 +32,6 @@ const BaseExample = () => {
                                 id="email"
                                 type="email"
                                 placeholder="Enter your email"
-                                autoComplete="email"
                                 required
                                 minLength={1}
                                 validatorKey={'email'}
@@ -48,20 +47,19 @@ const BaseExample = () => {
                                 id="email2"
                                 type="email"
                                 required
-                                minLength={1}
+                                minLength={2}
                                 placeholder="repeat Enter your email"
-                                autoComplete="email"
                                 element={renderInput}
                         />
 
-                        <GInput formKey={'phone'}
-                                id="phone"
-                                type="tel"
-                                required
-                                placeholder="Enter your phone number"
-                                autoComplete="phone"
-                                element={renderInput}
-                        />
+                        {/*<GInput formKey={'phone'}*/}
+                        {/*        id="phone"*/}
+                        {/*        type="tel"*/}
+                        {/*        required*/}
+                        {/*        placeholder="Enter your phone number"*/}
+                        {/*        autoComplete="phone"*/}
+                        {/*        element={renderInput}*/}
+                        {/*/>*/}
                         <button type="submit" disabled={state.isInvalid}>
                             Send Verification Code
                         </button>
