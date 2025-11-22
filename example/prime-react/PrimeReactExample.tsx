@@ -5,7 +5,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { Knob } from 'primereact/knob';
 
 import { GInput, RNGInput } from "@generic-form/fields";
-import { GForm } from "@generic-form/GForm2";
+import { GForm } from "@generic-form/GForm";
 import { SCSS_FormGroup } from "../styled";
 import { SignUpForm, validators } from "../validators";
 

@@ -8,7 +8,7 @@ export type GConstraintValidatorHandler = (input: GInputState<any>, validityKey:
 export type GCustomValidatorHandler<T> = (input: GInputState<any>, fields: IForm<T>) => RegExp | boolean;
 export type GCustomValidatorHandlerAsync<T> = (input: GInputState<any>, fields: IForm<T>) => Promise<ReturnType<GCustomValidatorHandler<T>>>;
 
-export type GInputValidator<T> = GValidator<T> | { handlers: GCustomValidatorHandler<T>[]; constraintHandlers: GConstraintValidatorHandler[]; asyncHandlers: GCustomValidatorHandlerAsync<T>[]; };
+export type GInputValidator<T> = GValidator<T> | { handlers: GCustomValidatorHandler<T>[]; constraintHandlers: GConstraintValidatorHandler[]; asyncHandlers: GCustomValidatorHandlerAsync<T>[]; hasConstraint(constraint: keyof ValidityState): boolean  };
 
 export type GValidators<T=any> = {
     [key in keyof T]?: GInputValidator<T>;

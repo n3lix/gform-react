@@ -53,6 +53,18 @@ const _RNGInput = forwardRef<any, RNGInputProps>(({
                 store.handlers._updateInputHandler(inputState, undefined, {value: e});
             };
 
+        if (!inputState.touched) {
+            _props.onFocus = rest.onFocus ?
+                (e) => {
+                    rest.onFocus!(e);
+                    inputState.dispatchChanges({touched: true});
+                }
+                :
+                () => {
+                    inputState.dispatchChanges({touched: true});
+                };
+        }
+
         if (element) {
             return (element as (input: GInputState, props: any) => ReactNode)(inputState, _props);
         }

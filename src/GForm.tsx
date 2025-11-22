@@ -145,7 +145,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
             const state = getFormState();
 
             if (__DEV__ && !hasSubmitter(formRef.current)) {
-                console.warn(`[No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
+                console.warn(`DEV ONLY - [No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
             }
 
             if (onInit) {

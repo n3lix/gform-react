@@ -3,6 +3,7 @@ import {type GInputValidator, type GValidators} from "./validations";
 import type {GInputState} from "./fields";
 import type {GChangeEvent, GDOMElement, GFocusEvent, GFormEvent, GInvalidEvent} from "./form";
 import type {InitialState, Store} from "./state";
+import {handlersMap, validityMap} from "./validations/GValidator";
 
 export const useFormHandlers = (getState: Store['getState'], setState: Store['setState'], validators: GValidators = {}, optimized = false) => {
     /**
@@ -12,13 +13,16 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
      */
     const _viHandler = (input: GInputState, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
         if (!input) return;
+
         const element = e && e.target;
+        const hasInitialValue = !input.dirty && input.value && !input.touched;
+
+        if (!element && !hasInitialValue) return;
 
         if (typeof document !== 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
             if (!input.checkValidity) input.checkValidity = () => element.checkValidity();
 
-            //if the field has initial value
-            if (!input.dirty && input.value && !input.touched) {
+            if (hasInitialValue) {  //if the field has initial value
                 /**
                  * for inputs with initial value we have to manually check for validations.
                  * validity.tooShort is false even though initial value is smaller than minLength, because its required to be filled in by user (native dirty flag is true).
@@ -32,7 +36,8 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             }
             element.setCustomValidity(''); //reset any previous error (custom)
 
-            const validityKey = _findValidityKey(element.validity);
+            const exclude: (keyof ValidityState)[] = input.type && (input.pattern || hasCustomValidation(input))  ? ['typeMismatch'] : [];
+            const validityKey = _findValidityKey(element.validity, exclude);
             _validateInput(input, validityKey, (v: string) => element.setCustomValidity(v));
 
             if (!validityKey && input.error) {
@@ -54,6 +59,8 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
     };
 
     const _checkInputManually = (input: GInputState) => {
+        const exclude: (keyof ValidityState)[] = input.type && (input.pattern || hasCustomValidation(input))  ? ['typeMismatch'] : [];
+
         let validityKey = _findValidityKey({
             valueMissing: input.required && !input.value || false,
             typeMismatch: _checkTypeMismatch(input),
@@ -62,7 +69,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             patternMismatch: input.pattern && _checkResult(input.pattern, input.value) || false,
             rangeUnderflow: input.min && Number(input.value) < Number(input.min) || false,
             rangeOverflow: input.max && Number(input.value) > Number(input.max) || false
-        });
+        }, exclude);
 
         if (!validityKey && input.error) {
             validityKey = 'customError';
@@ -94,6 +101,13 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         const inputValidator = validators[input.validatorKey || input.formKey] || validators['*'];
         if (__DEBUG__) {
             console.log('[validateInput] -', 'validating input:', input.formKey, `(${validityKey ? validityKey : 'custom'})`);
+        }
+
+        if (__DEV__) {
+            if (validityKey && !inputValidator?.hasConstraint(validityKey)) {
+                if (validityKey === 'typeMismatch') console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator / custom validation / pattern validator are missing.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' or '${handlersMap[validityMap.patternMismatch]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withPatternMismatchMessage('pattern mismatch'),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
+                else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withPatternMismatchMessage('pattern mismatch'),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
+            }
         }
 
         if (inputValidator) {
@@ -167,6 +181,11 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
                 validateAsync();
             });
         }
+    };
+
+    const hasCustomValidation = (input: GInputState) => {
+        const validator = validators[input.validatorKey || input.formKey] || validators['*'];
+        return validator && (validator.asyncHandlers.length > 0 || validator.handlers.length > 0);
     };
 
     return {_updateInputHandler, _viHandler, _dispatchChanges, optimized, _createInputChecker: _checkInputManually};
