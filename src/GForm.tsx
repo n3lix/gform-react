@@ -4,9 +4,8 @@ import React, {
 } from "react";
 import type {ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject} from "react";
 
-import {selectFirstInvalidField} from "./selectors";
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
-import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchParams, hasSubmitter} from "./helpers";
+import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchParams, _checkIfFormIsValid, hasSubmitter} from "./helpers";
 import type {GFormState, ToRawDataOptions} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
@@ -26,7 +25,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
     }: GFormProps<T>, ref: React.Ref<HTMLFormElement>) => {
         const formRef = useRef<HTMLFormElement | null>(null);
         const {getState, handlers} = useFormStore();
-        const isFormInvalid = useFormSelector(selectFirstInvalidField);
+        const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const refHandler = useCallback((element: HTMLFormElement | null) => {
             if (ref) {
@@ -40,7 +39,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
         }, [ref]);
 
         const getFormState = useCallback(() => {
-            const fields = getState<T>().fields;
+            const isFormInvalid= _checkIfFormIsValid(fields);
 
             const formState: GFormState<T> = {
                 ...fields,
@@ -66,7 +65,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
             if (stateRef) stateRef.current = formState;
 
             return formState;
-        }, [isFormInvalid]);
+        }, [fields]);
 
         const formComponent = useMemo(() => {
             const state = getFormState();
