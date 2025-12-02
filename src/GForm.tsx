@@ -39,12 +39,12 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
         }, [ref]);
 
         const getFormState = useCallback(() => {
-            const isFormInvalid= _checkIfFormIsValid(fields);
+            const isFormValid= _checkIfFormIsValid(fields);
 
             const formState: GFormState<T> = {
                 ...fields,
-                isValid: !isFormInvalid,
-                isInvalid: isFormInvalid,
+                isValid: isFormValid,
+                isInvalid: !isFormValid,
                 toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
                 toFormData: () => _toFormData(formRef.current),
                 toURLSearchParams: _toURLSearchParams,
@@ -105,8 +105,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
                     };
                 }
                 return (
-                    <form
-                        {...rest}
+                    <form {...rest}
                         ref={refHandler}
                         onPaste={_onPaste}
                         onKeyDown={_onKeyDown}

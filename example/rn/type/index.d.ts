@@ -2,7 +2,7 @@ import type {RefObject, ReactNode, FC, Ref} from "react";
 import type {TextInputProps, View, ViewProps} from 'react-native';
 import type {BaseGenericFieldProps, GInputState, GInputStateMutable, GValidators, IForm, PartialForm, RawData, ToRawDataOptions, ToURLSearchParamsOptions} from '../../dist';
 
-type RNGInputElementHandler<T> = (input: GInputStateMutable<T>, props: TextInputProps) => JSX.Element;
+type RNGInputElementHandler<T> = (input: GInputState<T>, props: TextInputProps) => ReactNode;
 
 export type RNGInputProps = BaseGenericFieldProps & TextInputProps & {
     defaultValue?: string | number;

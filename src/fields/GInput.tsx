@@ -74,7 +74,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>(({
                     store.handlers._updateInputHandler(inputState, e, unknown);
                 };
 
-            if (!inputState.touched) {
+            if (!inputState.touched && inputState.dispatchChanges) {
                 _props.onFocus = rest.onFocus ?
                     (e) => {
                         rest.onFocus!(e);

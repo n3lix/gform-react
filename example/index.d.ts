@@ -18,6 +18,7 @@ import type {
     ClipboardEvent,
     RefObject, DetailedHTMLProps, FormHTMLAttributes, Ref
 } from "react";
+import type {TextInputProps} from "react-native";
 
 export type RawData<T> = {
     [key in keyof T]: T[key];
@@ -119,7 +120,7 @@ export type GInputStateMutable<T = any> = GInputState<T> & {
     [key: string]: any;
 };
 
-type GInputElementHandler<T> =  (input: GInputStateMutable<T>, props: GElementProps<T>) => JSX.Element;
+type GInputElementHandler<T> = (input: GInputState<T>, props: GElementProps<T>) => ReactNode;
 
 export type GInputProps = BaseGenericFieldProps & Omit<InputHTMLAttributes<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>, 'value' | 'step' | 'min' | 'max' | 'minLength' | 'maxLength'> & {
     defaultChecked?: boolean;
