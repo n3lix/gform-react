@@ -36,6 +36,12 @@ const basePlugins = [
     commonjs()
 ];
 
+const external = [
+    ...Object.keys(packageJson.peerDependencies),
+    /@babel\/runtime/,
+    'react-native'
+];
+
 function babelConfig(es = false) {
     return babel({
         extensions,
@@ -59,12 +65,6 @@ function babelConfig(es = false) {
         ]
     });
 }
-
-const external = [
-    ...Object.keys(packageJson.peerDependencies),
-    /@babel\/runtime/,
-    'react-native'
-];
 
 function createCjsEntryPlugin() {
     return {
