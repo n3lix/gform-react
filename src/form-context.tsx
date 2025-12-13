@@ -13,7 +13,7 @@ type GFormContextProviderProps = PropsWithChildren & {
     initialState: InitialState;
     validators?: GValidators;
     optimized?: boolean;
-}
+};
 
 export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, initialState, validators, optimized }) => {
     const stateRef = useRef(initialState);
@@ -30,7 +30,9 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, 
         if (!listeners.current) {
             listeners.current = new Set();
         } else {
-            console.log(`form changed stated from`, stateRef.current, '\nto\n', initialState);
+            if (__DEBUG__) {
+                console.log(`[form-context] - form changed stated from`, stateRef.current, '\nto\n', initialState);
+            }
             listeners.current.clear();
             _copyStateFields(stateRef.current, initialState);
         }
@@ -57,7 +59,7 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, 
 
 export const useFormStore = () => {
     const store = useContext(GFormContext);
-    if (!store || !store.getState) throw new Error('useGFormStore must be used within `GForm` component');
+    if (!store.getState) throw new Error('useGFormStore must be used within `GForm` component');
 
     return store;
 };
