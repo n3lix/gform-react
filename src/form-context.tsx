@@ -1,10 +1,11 @@
-import React, {createContext, useCallback, useContext, useEffect, useRef, useSyncExternalStore} from 'react';
+import React, {createContext, useCallback, useContext, useMemo, useRef, useSyncExternalStore} from 'react';
 import type {FC, PropsWithChildren} from 'react';
 
 import {useFormHandlers} from "./useFormHandlers";
 import type {InitialState, Store} from "./state";
 import type {GValidators} from "./validations";
 import type {GInputState} from './fields';
+import {_copyStateFields} from "./helpers";
 
 const GFormContext = createContext<Store>({} as Store);
 
@@ -16,31 +17,42 @@ type GFormContextProviderProps = PropsWithChildren & {
 
 export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, initialState, validators, optimized }) => {
     const stateRef = useRef(initialState);
-    const listeners = useRef(new Set<() => void>());
+    const listeners = useRef<Set<() => void>>(null);
 
     const setState = useCallback((updater: InitialState | ((state: InitialState) => InitialState)) => {
         stateRef.current = typeof updater === 'function' ? updater(stateRef.current) : updater;
-        listeners.current.forEach((l) => l());
+        listeners.current!.forEach((l) => l());
     }, []);
 
     const handlers = useFormHandlers(() => stateRef.current, setState, validators, optimized);
 
-    const getState = useCallback(() => stateRef.current, []);
+    const store = useMemo<Store>(() => {
+        if (!listeners.current) {
+            listeners.current = new Set();
+        } else {
+            console.log(`form changed stated from`, stateRef.current, '\nto\n', initialState);
+            listeners.current.clear();
+            _copyStateFields(stateRef.current, initialState);
+        }
 
-    const subscribe = useCallback((listener: () => void) => {
-        listeners.current.add(listener);
-        return () => listeners.current.delete(listener);
-    }, []);
+        stateRef.current = initialState;
 
-    useEffect(() => {
         for (const fieldKey in initialState.fields) {
             initialState.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>) => handlers._dispatchChanges(changes, fieldKey);
         }
-    }, []);
 
-    const store = useRef<Store>({ getState, setState, subscribe, handlers });
+        return {
+            getState: () => stateRef.current,
+            setState,
+            subscribe: (listener: () => void) => {
+                listeners.current!.add(listener);
+                return () => listeners.current!.delete(listener);
+            },
+            handlers
+        };
+    }, [initialState]);
 
-    return <GFormContext.Provider value={store.current}>{children}</GFormContext.Provider>;
+    return <GFormContext.Provider value={store}>{children}</GFormContext.Provider>;
 };
 
 export const useFormStore = () => {

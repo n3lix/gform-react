@@ -9,7 +9,7 @@ import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchPa
 import type {GFormState, ToRawDataOptions} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
-import type {GValidators} from "@generic-form/validations";
+import type {GValidators} from "./validations";
 
 const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
     <T, >({
@@ -232,8 +232,7 @@ export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(
         }, [children]);
 
         return (
-            <GFormContextProvider key={initialState.key} initialState={initialState} validators={validators}
-                optimized={optimized}>
+            <GFormContextProvider initialState={initialState} validators={validators} optimized={optimized}>
                 <FormRenderer ref={ref} {...props}>
                     {children}
                 </FormRenderer>

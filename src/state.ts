@@ -1,4 +1,4 @@
-import type { IForm, PartialForm } from "./form";
+import type {IForm, PartialForm} from "./form";
 import type { GInputState } from "./fields";
 import {useFormHandlers} from "./useFormHandlers";
 
@@ -8,7 +8,6 @@ export type RawData<T> = {
 
 export type InitialState<T = any> = {
     fields: IForm<T> & { [key: string]: GInputState<any> };
-    key: string;
 };
 
 export type ToURLSearchParamsOptions<T> = {

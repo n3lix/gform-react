@@ -1,5 +1,5 @@
 import type { ChangeEvent, FormEvent, InvalidEvent, FocusEvent, EventHandler, FocusEventHandler, ChangeEventHandler, FormEventHandler, SyntheticEvent } from "react";
-import type { GInputState, GInputStateMutable } from "./fields";
+import type { GInputProps, GInputState, GInputStateMutable } from "./fields";
 
 export type PartialPick<T, P extends keyof T> = Omit<T, P> & Partial<Pick<T, P>>;
 
@@ -7,6 +7,19 @@ export type IForm<T=any> = {
     [key in keyof T]: GInputState<T[key]>;
 } & {
     [key: string]: GInputState<any>;
+};
+
+export type FormNode = {
+    type: "input" | "group";
+    formKey?: string;
+    props?: GInputProps & GInputStateMutable;
+    children?: FormNode[];
+};
+
+export type FormTreeResult = {
+    tree: FormNode[];
+    flat: (GInputProps & GInputStateMutable)[];
+    signature: string;
 };
 
 export type PartialForm<T> = Partial<{ [key in keyof T]: Partial<GInputStateMutable<T[key]>> }>;
