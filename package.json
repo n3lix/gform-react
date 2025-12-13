@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "npm run clean && rollup -w -c rollup.dev-server.config.mjs --environment build:development",
     "debug": "npm run clean && rollup -w -c rollup.dev-server.config.mjs --environment build:development --environment mode:debug",
-    "strict": "npm run clean && rollup -w -c rollup.dev-server.config.mjs --environment build:development --environment mode:debug|strict",
+    "strict": "npm run clean && rollup -w -c rollup.dev-server.config.mjs --environment build:development --environment mode:strict",
     "build:dev": "rollup -c --environment build:development",
     "build:prod": "rollup -c --environment build:production",
     "build": "npm run tscheck && npm run lint && npm run security:check && npm run clean && npm run build:dev && npm run build:prod",

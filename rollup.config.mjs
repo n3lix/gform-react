@@ -8,9 +8,10 @@ import dts from 'rollup-plugin-dts';
 
 import packageJson from './package.json' with { type: "json" };
 
-const isProd = process.env.build === 'production';
+const build = process.env.build;
+const isProd = build === 'production';
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
-const build = isProd ? 'production' : 'development';
+const env = isProd ? 'production' : 'development';
 
 const esmEntries = {
     GForm: "src/GForm.tsx",
@@ -26,7 +27,7 @@ const rnESMEntries = {
 
 const basePlugins = [
     replace({
-        'process.env.NODE_ENV': JSON.stringify(build),
+        'process.env.NODE_ENV': JSON.stringify(env),
         '__DEV__': JSON.stringify(!isProd),
         '__DEBUG__': 'false',
         preventAssignment: true,
@@ -93,7 +94,7 @@ const cjs = {
         dir: "dist/cjs",
         format: "cjs",
         sourcemap: true,
-        entryFileNames: `gform-react.${build}.js`,
+        entryFileNames: `gform-react.${env}.js`,
     },
     plugins: [
         ...basePlugins,
@@ -108,8 +109,8 @@ const esm = {
     input: esmEntries,
     output: {
         dir: "dist/esm",
-        entryFileNames: `[name].${build}.js`,
-        chunkFileNames: `shared.${build}.js`,
+        entryFileNames: `[name].${env}.js`,
+        chunkFileNames: `shared.${env}.js`,
         format: "es",
         sourcemap: true
     },
@@ -137,7 +138,7 @@ const nativeCJS = {
         dir: "native/dist/cjs",
         format: "cjs",
         sourcemap: true,
-        entryFileNames: `gform-react.${build}.js`,
+        entryFileNames: `gform-react.${env}.js`,
     },
     plugins: [
         ...basePlugins,
@@ -152,8 +153,8 @@ const nativeESM = {
     input: rnESMEntries,
     output: {
         dir: "native/dist/esm",
-        entryFileNames: `[name].${build}.js`,
-        chunkFileNames: `shared.${build}.js`,
+        entryFileNames: `[name].${env}.js`,
+        chunkFileNames: `shared.${env}.js`,
         format: "es",
         sourcemap: true
     },
