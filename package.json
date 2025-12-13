@@ -1,6 +1,6 @@
 {
   "name": "gform-react",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "Build generic forms with validations for React-based applications",
   "author": "Tal Maman, Arkady Birko",
   "license": "MIT",
@@ -97,9 +97,9 @@
   "homepage": "https://gform-react.onrender.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/talmaman/gform-react.git"
+    "url": "https://github.com/n3lix/gform-react"
   },
   "bugs": {
-    "url": "https://github.com/talmaman/gform-react/issues"
+    "url": "https://github.com/n3lix/gform-react/issues"
   }
 }

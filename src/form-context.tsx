@@ -57,7 +57,8 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, 
 
 export const useFormStore = () => {
     const store = useContext(GFormContext);
-    if (!store) throw new Error('useGFormStore must be used within `GForm` component');
+    if (!store || !store.getState) throw new Error('useGFormStore must be used within `GForm` component');
+
     return store;
 };
 
