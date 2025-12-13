@@ -1,15 +1,8 @@
-import {Children, isValidElement, PropsWithChildren, ReactElement, ReactNode} from "react";
-
+import {Children, isValidElement} from 'react';
+import type {PropsWithChildren, ReactElement, ReactNode} from 'react';
 import type {GInputInitialState, GInputProps, GInputState, GInputStateMutable} from './fields';
 import type {FormNode, FormTreeResult, GChangeEvent, GDOMElement, IForm} from './form';
-import type {
-    GFormState,
-    InitialState,
-    RawData,
-    ToFormDataOptions,
-    ToRawDataOptions,
-    ToURLSearchParamsOptions
-} from './state';
+import type {GFormState, InitialState, RawData, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
 
@@ -130,7 +123,8 @@ const _buildFormTree = (
     ];
 };
 
-export const buildFormTreeWithFlatAndSignature = (
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const buildFormTreeWithFlatAndSignature = (
     root?: ReactElement<any> | ReactElement<any>[] | undefined
 ): FormTreeResult => {
     const flat: (GInputProps & GInputStateMutable)[] = [];
@@ -231,7 +225,7 @@ export const _checkTypeMismatch = (input: GInputState<any>) => {
 };
 
 
-export const hasSubmitter = (form?: HTMLFormElement | null): boolean => {
+export const _hasSubmitter = (form?: HTMLFormElement | null): boolean => {
     if (!form) return false;
 
     for (const element of form) {

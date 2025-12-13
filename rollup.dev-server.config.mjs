@@ -5,14 +5,16 @@ import babel from '@rollup/plugin-babel';
 import nodeResolve from '@rollup/plugin-node-resolve';
 import { liveServer } from 'rollup-plugin-live-server';
 
-const MODE = process.env.MODE || "development";
-const DEBUG = process.env.DEBUG === "true";
-const STRICT = process.env.STRICT === "true";
+const { build, mode = '' } = process.env;
+const production = build === 'production';
+const debug = mode === 'debug' || mode === 'strict';
+const strict = mode === 'strict';
 
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
 
 function startServer(options) {
     let started = false;
+
     return {
         name: "start-server-once",
         writeBundle() {
@@ -38,10 +40,10 @@ export default {
         replace({
             preventAssignment: true,
             values: {
-                "process.env.NODE_ENV": JSON.stringify(MODE),
-                "__DEV__": JSON.stringify(MODE !== "production"),
-                "__DEBUG__": JSON.stringify(DEBUG),
-                "__STRICT__": JSON.stringify(STRICT)
+                'process.env.NODE_ENV': JSON.stringify(build),
+                '__DEBUG__': JSON.stringify(debug),
+                '__DEV__': JSON.stringify(!production),
+                '__STRICT__': JSON.stringify(strict),
             }
         }),
         nodeResolve({ extensions }),
