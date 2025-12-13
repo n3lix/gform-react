@@ -225,7 +225,7 @@ export const _checkTypeMismatch = (input: GInputState<any>) => {
 };
 
 
-export const hasSubmitter = (form?: HTMLFormElement | null): boolean => {
+export const _hasSubmitter = (form?: HTMLFormElement | null): boolean => {
     if (!form) return false;
 
     for (const element of form) {

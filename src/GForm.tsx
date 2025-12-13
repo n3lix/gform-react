@@ -2,7 +2,7 @@ import React, {forwardRef, useCallback, useEffect, useMemo, useRef} from "react"
 import type {ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
-import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchParams, _checkIfFormIsValid, hasSubmitter} from "./helpers";
+import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchParams, _checkIfFormIsValid, _hasSubmitter} from "./helpers";
 import type {GFormState, ToRawDataOptions} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
@@ -139,7 +139,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
         useEffect(() => {
             const state = getFormState();
 
-            if (__DEV__ && !hasSubmitter(formRef.current)) {
+            if (__DEV__ && !_hasSubmitter(formRef.current)) {
                 console.warn(`DEV ONLY - [No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
             }
 
