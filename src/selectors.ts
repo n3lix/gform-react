@@ -1,5 +1,5 @@
 import {createSelector} from "./form-context";
-import {InitialState} from "./state";
+import type { InitialState} from "./state";
 
 const selectFields = [(state: InitialState) => state.fields];
 
