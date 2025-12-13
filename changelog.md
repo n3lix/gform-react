@@ -1,3 +1,6 @@
+## 2.6.0
+* Fixed critical bug where the form is reset entirely on every parent render
+
 ## 2.5.0
 * Significantly improved performance
 * Added useFormSelector hook

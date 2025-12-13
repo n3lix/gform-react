@@ -4,6 +4,12 @@ import {Tab} from "../tabs";
 import {GForm} from "../../src/GForm";
 import {SignUpForm, validators} from "../validators";
 import {GInput} from "../../src/fields/GInput";
+import {useFormSelector} from "../../src/form-context";
+const Test = () => {
+    const city = useFormSelector(state => state.fields.city);
+    console.log(city);
+    return (<div>test!!!!!!!</div>);
+}
 
 const BaseExample = () => {
     const [c, setC] = useState(0);
@@ -49,6 +55,8 @@ const BaseExample = () => {
                         <button type={'button'} onClick={() => setC(p => p + 1)}>
                             test
                         </button>
+
+                        <Test/>
 
                         {
                             c > 0 && <div><GInput formKey={'test'}
