@@ -48,8 +48,8 @@ export type GInputStateMutable<T = any> = GInputState<T> & {
     [key: string]: any;
 };
 
-type GInputElementHandler<T> = (input: GInputStateMutable<T>, props: GElementProps<T>) => ReactNode;
-type RNGInputElementHandler<T> = (input: GInputStateMutable<T>, props: TextInputProps) => ReactNode;
+type GInputElementHandler<T> = (input: GInputState<T>, props: GElementProps<T>) => ReactNode;
+type RNGInputElementHandler<T> = (input: GInputState<T>, props: TextInputProps) => ReactNode;
 
 export type RNGInputProps = BaseGenericFieldProps & TextInputProps & {
     defaultValue?: string | number;

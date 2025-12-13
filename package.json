@@ -1,26 +1,26 @@
 {
   "name": "gform-react",
-  "version": "2.5.1",
-  "description": "build generic forms with validations for react-based applications",
+  "version": "2.5.4",
+  "description": "Build generic forms with validations for React-based applications",
   "author": "Tal Maman, Arkady Birko",
   "license": "MIT",
   "scripts": {
     "dev": "npm run clean && rollup -w -c rollup.dev-server.config.mjs --environment build:development",
     "debug": "npm run clean && rollup -w -c rollup.dev-server.config.mjs --environment build:development --environment mode:debug",
     "strict": "npm run clean && rollup -w -c rollup.dev-server.config.mjs --environment build:development --environment mode:debug|strict",
-    "clean": "rimraf ./dist && rimraf ./native",
-    "build:prod": "rollup -c --environment build:production",
     "build:dev": "rollup -c --environment build:development",
+    "build:prod": "rollup -c --environment build:production",
     "build": "npm run tscheck && npm run lint && npm run security:check && npm run clean && npm run build:dev && npm run build:prod",
     "tscheck": "tsc --noEmit",
     "security:check": "npm audit --production --audit-level high",
     "lint": "eslint src --ext .ts --ext .tsx",
     "lint:fix": "eslint src --ext .ts --ext .tsx --fix",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "clean": "rimraf ./dist && rimraf ./native",
+    "test": "echo \"No tests specified\" && exit 1"
   },
-  "typings": "dist/index.d.ts",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
+  "typings": "dist/index.d.ts",
   "exports": {
     ".": {
       "require": "./dist/cjs/index.js",
@@ -28,6 +28,7 @@
         "production": "./dist/esm/index.js",
         "development": "./dist/esm/index.development.js"
       },
+      "types": "./dist/index.d.ts",
       "default": "./dist/esm/index.js"
     },
     "./native": {
@@ -36,6 +37,7 @@
         "production": "./native/dist/esm/index.js",
         "development": "./native/dist/esm/index.development.js"
       },
+      "types": "./native/dist/index.d.ts",
       "default": "./native/dist/esm/index.js"
     }
   },
@@ -77,6 +79,7 @@
     "rimraf": "^5.0.1",
     "rollup": "^4.53.2",
     "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-dts": "^6.3.0",
     "rollup-plugin-live-server": "^2.0.0",
     "typescript": "^5.9.3"
   },

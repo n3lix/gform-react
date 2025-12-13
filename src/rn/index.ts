@@ -1,2 +1,2 @@
 export { RNGForm } from '../RNGForm';
-export { RNGInput } from '../fields';
+export { RNGInput } from '../fields/RNGInput';

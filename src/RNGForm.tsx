@@ -146,7 +146,7 @@ export const RNGForm = forwardRef<any, RNGFormProps<any>>(
         }, [children]);
 
         return (
-            <GFormContextProvider key={initialState.key} initialState={initialState} validators={validators}>
+            <GFormContextProvider initialState={initialState} validators={validators}>
                 <FormRenderer ref={ref} {...props}>
                     {children}
                 </FormRenderer>

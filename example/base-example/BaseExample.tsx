@@ -18,10 +18,9 @@ const BaseExample = () => {
     }, []);
 
     return (
-        <Tabs headersContainer={<div />}>
+        <Tabs headersContainer={<div/>}>
             <Tab index={0} header={<button>Email</button>}>
                 <GForm<SignUpForm> ref={ref} onInit={(state) => {
-                    console.log(state);
                 }} validators={validators}
                                    onSubmit={(state, e) => {
                                        e.preventDefault();
@@ -31,19 +30,14 @@ const BaseExample = () => {
                         <GInput formKey={'email'}
                                 id="email"
                                 type="email"
-                                placeholder="Enter your email"
+                            placeholder="Enter your email"
                                 required
                                 minLength={1}
                                 validatorKey={'email'}
-                            // fetch={(state) => {
-                            //     console.log('fetch');
-                            //     console.log(state.dispatchChanges({value: 'test'}))
-                            // }}
-                            // fetchDeps={['email2']}
                                 element={renderInput}
                         />
 
-                        <GInput formKey={'email2'}
+                        <GInput formKey={'city'}
                                 id="email2"
                                 type="email"
                                 required
@@ -52,14 +46,21 @@ const BaseExample = () => {
                                 element={renderInput}
                         />
 
-                        {/*<GInput formKey={'phone'}*/}
-                        {/*        id="phone"*/}
-                        {/*        type="tel"*/}
-                        {/*        required*/}
-                        {/*        placeholder="Enter your phone number"*/}
-                        {/*        autoComplete="phone"*/}
-                        {/*        element={renderInput}*/}
-                        {/*/>*/}
+                        <button type={'button'} onClick={() => setC(p => p + 1)}>
+                            test
+                        </button>
+
+                        {
+                            c > 0 && <div><GInput formKey={'test'}
+                                             id="test"
+                                             type="text"
+                                             required
+                                             minLength={2}
+                                             placeholder="repeat Enter your email"
+                                             element={renderInput}
+                            /></div>
+                        }
+
                         <button type="submit" disabled={state.isInvalid}>
                             Send Verification Code
                         </button>

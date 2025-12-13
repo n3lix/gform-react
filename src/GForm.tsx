@@ -4,13 +4,12 @@ import React, {
 } from "react";
 import type {ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject} from "react";
 
-import {selectFirstInvalidField} from "./selectors";
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
-import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchParams, hasSubmitter} from "./helpers";
+import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchParams, _checkIfFormIsValid, hasSubmitter} from "./helpers";
 import type {GFormState, ToRawDataOptions} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
-import type {GValidators} from "@generic-form/validations";
+import type {GValidators} from "./validations";
 
 const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
     <T, >({
@@ -26,7 +25,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
     }: GFormProps<T>, ref: React.Ref<HTMLFormElement>) => {
         const formRef = useRef<HTMLFormElement | null>(null);
         const {getState, handlers} = useFormStore();
-        const isFormInvalid = useFormSelector(selectFirstInvalidField);
+        const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const refHandler = useCallback((element: HTMLFormElement | null) => {
             if (ref) {
@@ -40,12 +39,12 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
         }, [ref]);
 
         const getFormState = useCallback(() => {
-            const fields = getState<T>().fields;
+            const isFormValid= _checkIfFormIsValid(fields);
 
             const formState: GFormState<T> = {
                 ...fields,
-                isValid: !isFormInvalid,
-                isInvalid: isFormInvalid,
+                isValid: isFormValid,
+                isInvalid: !isFormValid,
                 toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
                 toFormData: () => _toFormData(formRef.current),
                 toURLSearchParams: _toURLSearchParams,
@@ -66,7 +65,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
             if (stateRef) stateRef.current = formState;
 
             return formState;
-        }, [isFormInvalid]);
+        }, [fields]);
 
         const formComponent = useMemo(() => {
             const state = getFormState();
@@ -106,8 +105,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
                     };
                 }
                 return (
-                    <form
-                        {...rest}
+                    <form {...rest}
                         ref={refHandler}
                         onPaste={_onPaste}
                         onKeyDown={_onKeyDown}
@@ -234,8 +232,7 @@ export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(
         }, [children]);
 
         return (
-            <GFormContextProvider key={initialState.key} initialState={initialState} validators={validators}
-                optimized={optimized}>
+            <GFormContextProvider initialState={initialState} validators={validators} optimized={optimized}>
                 <FormRenderer ref={ref} {...props}>
                     {children}
                 </FormRenderer>
