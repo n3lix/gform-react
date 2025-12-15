@@ -1,7 +1,7 @@
 import {Children, isValidElement} from 'react';
 import type {PropsWithChildren, ReactElement, ReactNode} from 'react';
 import type {GInputInitialState, GInputProps, GInputState, GInputStateMutable} from './fields';
-import type {FormNode, FormTreeResult, GChangeEvent, GDOMElement, IForm} from './form';
+import type {FormNode, FormTreeResult, GChangeEvent, GDOMElement, IForm, PartialForm} from './form';
 import type {GFormState, InitialState, RawData, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
@@ -360,4 +360,50 @@ export const _merge = <T extends object>(target: { [key: string]: any } = {}, ..
     }
 
     return _merge(target, ...nodes);
+};
+
+export const _mergeRefs = <T>(
+    refA: React.Ref<T> | undefined,
+    refB: React.Ref<T> | undefined
+) => {
+    return (value: T | null) => {
+        if (typeof refA === 'function') {
+            refA(value);
+        } else if (refA) {
+            refA.current = value;
+        }
+
+        if (typeof refB === 'function') {
+            refB(value);
+        } else if (refB) {
+            refB.current = value;
+        }
+    };
+};
+
+export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElement: HTMLFormElement, dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void) => {
+    const isFormValid = _checkIfFormIsValid(fields);
+
+    const formState: GFormState<T> = {
+        ...fields,
+        isValid: isFormValid,
+        isInvalid: !isFormValid,
+        toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
+        toFormData: () => _toFormData(formElement),
+        toURLSearchParams: _toURLSearchParams,
+        checkValidity: function () { // it has to be a function in order to refer to 'this'
+            this.isValid = formElement && formElement.checkValidity() || false;
+            this.isInvalid = !this.isValid;
+            return this.isValid;
+        },
+        dispatchChanges: (changes: PartialForm<T> & {
+            [key: string]: Partial<GInputState<any>>
+        }) => dispatchChanges({
+            fields: _merge<IForm<T> & {
+                [key: string]: GInputState;
+            }>({}, fields, changes)
+        })
+    };
+
+    return formState;
 };
