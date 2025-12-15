@@ -20,7 +20,7 @@ export const makeSelectFields = (keys: string[] = []) =>
     createSelector(
         selectFields,
         (fields) => {
-            const selected = keys.map((key) => fields[key]).filter(Boolean);
+            const selected = keys.map((key) => JSON.stringify(fields[key].value)).join(', ');
             return selected.length ? selected : null;
         }
     );

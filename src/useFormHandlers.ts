@@ -15,12 +15,11 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         if (!input) return;
 
         const element = e && e.target;
-        const hasInitialValue = !input.dirty && input.value && !input.touched;
-
-        if (!element && !hasInitialValue) return;
 
         if (typeof document !== 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
             if (!input.checkValidity) input.checkValidity = () => element.checkValidity();
+
+            const hasInitialValue = !input.dirty && input.value && !input.touched;
 
             if (hasInitialValue) {  //if the field has initial value
                 /**
@@ -50,7 +49,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
                 console.log('[validateInputHandler] -', `the input '${input.formKey}' is not a native web element\nevent:`, e);
             }
 
-            //fallback - validate the input for validations manually
+            // fallback - validate the input for validations manually
             input.checkValidity = () => _checkInputManually(input);
             input.checkValidity();
 

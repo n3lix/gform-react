@@ -1,14 +1,18 @@
-import React, {forwardRef, useCallback, useEffect, useMemo, useRef} from "react";
+import React, {forwardRef, useEffect, useMemo, useRef, ForwardedRef} from "react";
 import type {ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
-import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchParams, _checkIfFormIsValid, _hasSubmitter} from "./helpers";
-import type {GFormState, ToRawDataOptions} from "./state";
+import {_buildFormInitialValues, _merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
+import type {GFormState, InitialState} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
 import type {GValidators} from "./validations";
 
-const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
+type FormRendererProps<T> = GFormProps<T> & {
+    initialState: InitialState<T>;
+}
+
+const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
     <T, >({
         stateRef,
         onSubmit,
@@ -18,59 +22,19 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
         onKeyUp,
         children,
         onInit,
+        initialState,
         ...rest
-    }: GFormProps<T>, ref: React.Ref<HTMLFormElement>) => {
-        const formRef = useRef<HTMLFormElement | null>(null);
-        const {getState, handlers} = useFormStore();
+    }: FormRendererProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
+        const formRef = useRef<HTMLFormElement>(null);
+        const {handlers} = useFormStore();
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
-        const refHandler = useCallback((element: HTMLFormElement | null) => {
-            if (ref) {
-                if (typeof ref === 'function') {
-                    ref(element);
-                } else {
-                    ref.current = element;
-                }
-            }
-            formRef.current = element;
-        }, [ref]);
-
-        const getFormState = useCallback(() => {
-            const isFormValid= _checkIfFormIsValid(fields);
-
-            const formState: GFormState<T> = {
-                ...fields,
-                isValid: isFormValid,
-                isInvalid: !isFormValid,
-                toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
-                toFormData: () => _toFormData(formRef.current),
-                toURLSearchParams: _toURLSearchParams,
-                checkValidity: function () { // it has to be a function in order to refer to 'this'
-                    this.isValid = formRef.current && formRef.current.checkValidity() || false;
-                    this.isInvalid = !this.isValid;
-                    return this.isValid;
-                },
-                dispatchChanges: (changes: PartialForm<T> & {
-                    [key: string]: Partial<GInputState<any>>
-                }) => handlers._dispatchChanges({
-                    fields: _merge<IForm<T> & {
-                        [key: string]: GInputState;
-                    }>({}, fields, changes)
-                })
-            };
-
-            if (stateRef) stateRef.current = formState;
-
-            return formState;
-        }, [fields]);
-
         const formComponent = useMemo(() => {
-            const state = getFormState();
-
+            const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges);
             const formChildren = typeof children === 'function' ? children(state) : children;
 
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
-                const state = getFormState();
+                const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges);
                 if (state.isValid && onSubmit) {
                     onSubmit(state, e);
                 }
@@ -90,6 +54,8 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
                 _onKeyUp = (e: KeyboardEvent<HTMLFormElement>) => onKeyUp(state, e);
             }
 
+            if (stateRef) stateRef.current = state;
+
             if (handlers.optimized) {
                 if (onChange) {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
@@ -103,7 +69,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
                 }
                 return (
                     <form {...rest}
-                        ref={refHandler}
+                        ref={_mergeRefs(ref, formRef)}
                         onPaste={_onPaste}
                         onKeyDown={_onKeyDown}
                         onKeyUp={_onKeyUp}
@@ -124,20 +90,20 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
             }
 
             return (
-                <form {...rest} 
-                    ref={refHandler} 
-                    onSubmit={_onSubmit} 
-                    onChange={_onChange} 
-                    onPaste={_onPaste} 
-                    onKeyDown={_onKeyDown} 
+                <form {...rest}
+                    ref={_mergeRefs(ref, formRef)}
+                    onSubmit={_onSubmit}
+                    onChange={_onChange}
+                    onPaste={_onPaste}
+                    onKeyDown={_onKeyDown}
                     onKeyUp={_onKeyUp}>
                     {formChildren}
                 </form>
             );
-        }, [children, getFormState]);
+        }, [children, fields]);
 
         useEffect(() => {
-            const state = getFormState();
+            const state = _buildFormState(initialState.fields, formRef.current!, handlers._dispatchChanges);
 
             if (__DEV__ && !_hasSubmitter(formRef.current)) {
                 console.warn(`DEV ONLY - [No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
@@ -160,12 +126,12 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
             if (__DEBUG__) {
                 console.log('checking for initial values');
             }
-            const fields = getState().fields;
+            const fields = initialState.fields;
 
             for (const fieldKey in fields) {
                 const field = fields[fieldKey];
 
-                //we don't want to apply validation on empty fields so skip it.
+                //we don't want to apply validation on empty fields, so skip it.
                 if (!field.value) continue;
 
                 if (__DEBUG__) {
@@ -178,11 +144,11 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
                  */
                 handlers._viHandler(field);
             }
-        }, [getFormState]);
+        }, []);
 
         return formComponent;
     }
-) as <T>(props: GFormProps<T> & { ref?: React.Ref<HTMLFormElement> }) => React.ReactElement | null;
+) as <T>(props: FormRendererProps<T> & { ref?: React.Ref<HTMLFormElement> }) => React.ReactElement | null;
 
 export type GFormProps<T> =
     Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'onKeyUp' | 'onKeyDown' | 'children'>
@@ -219,9 +185,9 @@ export type GFormProps<T> =
  * @link Npm - https://www.npmjs.com/package/gform-react
  */
 export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(
-    <T, >({children, validators, optimized, ...props}: GFormProps<T>, ref: React.Ref<HTMLFormElement>) => {
+    <T, >({children, validators, optimized, ...props}: GFormProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
         const initialState = useMemo(() => {
-            return _buildFormInitialValues(
+            return _buildFormInitialValues<T>(
                 typeof children === 'function'
                     ? children({} as GFormState<T>)
                     : children
@@ -230,7 +196,7 @@ export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(
 
         return (
             <GFormContextProvider initialState={initialState} validators={validators} optimized={optimized}>
-                <FormRenderer ref={ref} {...props}>
+                <FormRenderer ref={ref} initialState={initialState} {...props}>
                     {children}
                 </FormRenderer>
             </GFormContextProvider>
