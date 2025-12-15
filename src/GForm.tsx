@@ -3,16 +3,12 @@ import type {ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, Detai
 
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
 import {_buildFormInitialValues, _merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
-import type {GFormState, InitialState} from "./state";
+import type {GFormState} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
 import type {GValidators} from "./validations";
 
-type FormRendererProps<T> = GFormProps<T> & {
-    initialState: InitialState<T>;
-}
-
-const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
+const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
     <T, >({
         stateRef,
         onSubmit,
@@ -22,11 +18,10 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
         onKeyUp,
         children,
         onInit,
-        initialState,
         ...rest
-    }: FormRendererProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
+    }: GFormProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
         const formRef = useRef<HTMLFormElement>(null);
-        const {handlers} = useFormStore();
+        const {handlers, getState} = useFormStore();
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const formComponent = useMemo(() => {
@@ -103,7 +98,8 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
         }, [children, fields]);
 
         useEffect(() => {
-            const state = _buildFormState(initialState.fields, formRef.current!, handlers._dispatchChanges);
+            const initialStateFields = getState<T>().fields;
+            const state = _buildFormState<T>(initialStateFields, formRef.current!, handlers._dispatchChanges);
 
             if (__DEV__ && !_hasSubmitter(formRef.current)) {
                 console.warn(`DEV ONLY - [No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
@@ -126,7 +122,6 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
             if (__DEBUG__) {
                 console.log('checking for initial values');
             }
-            const fields = initialState.fields;
 
             for (const fieldKey in fields) {
                 const field = fields[fieldKey];
@@ -148,7 +143,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
 
         return formComponent;
     }
-) as <T>(props: FormRendererProps<T> & { ref?: React.Ref<HTMLFormElement> }) => React.ReactElement | null;
+) as <T>(props: GFormProps<T> & { ref?: React.Ref<HTMLFormElement> }) => React.ReactElement | null;
 
 export type GFormProps<T> =
     Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'onKeyUp' | 'onKeyDown' | 'children'>
@@ -196,7 +191,7 @@ export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(
 
         return (
             <GFormContextProvider initialState={initialState} validators={validators} optimized={optimized}>
-                <FormRenderer ref={ref} initialState={initialState} {...props}>
+                <FormRenderer ref={ref} {...props}>
                     {children}
                 </FormRenderer>
             </GFormContextProvider>
