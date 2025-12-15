@@ -1,5 +1,5 @@
-import React, {forwardRef, useEffect, useMemo, useRef, ForwardedRef} from "react";
-import type {ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
+import React, {forwardRef, useEffect, useMemo, useRef} from "react";
+import type {ForwardedRef, ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
 import {_buildFormInitialValues, _merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
