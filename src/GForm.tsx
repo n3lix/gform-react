@@ -3,12 +3,14 @@ import type {ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, Detai
 
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
 import {_buildFormInitialValues, _merge, _toFormData, _toRawData, _toURLSearchParams, _checkIfFormIsValid, _hasSubmitter} from "./helpers";
-import type {GFormState, ToRawDataOptions} from "./state";
+import type {GFormState, InitialState, ToRawDataOptions} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
 import type {GValidators} from "./validations";
 
-const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
+type FormRendererProps = {initialState?: InitialState;} & GFormProps<any>;
+
+const FormRenderer = forwardRef<any, FormRendererProps>(
     <T, >({
         stateRef,
         onSubmit,
@@ -18,8 +20,9 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
         onKeyUp,
         children,
         onInit,
+        initialState,
         ...rest
-    }: GFormProps<T>, ref: React.Ref<HTMLFormElement>) => {
+    }: FormRendererProps, ref) => {
         const formRef = useRef<HTMLFormElement | null>(null);
         const {getState, handlers} = useFormStore();
         const fields = useFormSelector(state => state.fields) as IForm<T>;
@@ -35,7 +38,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
             formRef.current = element;
         }, [ref]);
 
-        const getFormState = useCallback(() => {
+        const getFormState = useCallback((fields) => {
             const isFormValid= _checkIfFormIsValid(fields);
 
             const formState: GFormState<T> = {
@@ -62,15 +65,15 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
             if (stateRef) stateRef.current = formState;
 
             return formState;
-        }, [fields]);
+        }, []);
 
         const formComponent = useMemo(() => {
-            const state = getFormState();
+            const state = getFormState(fields);
 
             const formChildren = typeof children === 'function' ? children(state) : children;
 
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
-                const state = getFormState();
+                const state = getFormState(fields);
                 if (state.isValid && onSubmit) {
                     onSubmit(state, e);
                 }
@@ -134,51 +137,55 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
                     {formChildren}
                 </form>
             );
-        }, [children, getFormState]);
+        }, [children, fields]);
 
         useEffect(() => {
-            const state = getFormState();
+            if (initialState) {
+                const state = getFormState(initialState.fields);
 
-            if (__DEV__ && !_hasSubmitter(formRef.current)) {
-                console.warn(`DEV ONLY - [No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
-            }
+                console.log('init');
 
-            if (onInit) {
-                const changes = onInit(state);
-                if (changes) {
-                    const _handler = (_c: void | PartialForm<T>) => handlers._dispatchChanges({
-                        fields: _merge<IForm<T> & {
-                            [key: string]: GInputState;
-                        }>({}, state, _c)
-                    });
-                    if (changes instanceof Promise) {
-                        changes.then(_handler);
-                    } else _handler(changes);
+                if (__DEV__ && !_hasSubmitter(formRef.current)) {
+                    console.warn(`DEV ONLY - [No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
                 }
-            }
 
-            if (__DEBUG__) {
-                console.log('checking for initial values');
-            }
-            const fields = getState().fields;
-
-            for (const fieldKey in fields) {
-                const field = fields[fieldKey];
-
-                //we don't want to apply validation on empty fields so skip it.
-                if (!field.value) continue;
+                if (onInit) {
+                    const changes = onInit(state);
+                    if (changes) {
+                        const _handler = (_c: void | PartialForm<T>) => handlers._dispatchChanges({
+                            fields: _merge<IForm<T> & {
+                                [key: string]: GInputState;
+                            }>({}, state, _c)
+                        });
+                        if (changes instanceof Promise) {
+                            changes.then(_handler);
+                        } else _handler(changes);
+                    }
+                }
 
                 if (__DEBUG__) {
-                    console.log(`found input '${fieldKey}', applying validation(s)`);
+                    console.log('checking for initial values');
                 }
-                /**
-                 * We have to manually check for validations (checkValidity() will not result with validity.tooShort = true).
-                 * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
-                 * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
-                 */
-                handlers._viHandler(field);
+                const fields = getState().fields;
+
+                for (const fieldKey in fields) {
+                    const field = fields[fieldKey];
+
+                    //we don't want to apply validation on empty fields so skip it.
+                    if (!field.value) continue;
+
+                    if (__DEBUG__) {
+                        console.log(`found input '${fieldKey}', applying validation(s)`);
+                    }
+                    /**
+                     * We have to manually check for validations (checkValidity() will not result with validity.tooShort = true).
+                     * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
+                     * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
+                     */
+                    handlers._viHandler(field);
+                }
             }
-        }, [getFormState]);
+        }, [initialState]);
 
         return formComponent;
     }
@@ -230,7 +237,7 @@ export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(
 
         return (
             <GFormContextProvider initialState={initialState} validators={validators} optimized={optimized}>
-                <FormRenderer ref={ref} {...props}>
+                <FormRenderer ref={ref} initialState={initialState} {...props}>
                     {children}
                 </FormRenderer>
             </GFormContextProvider>

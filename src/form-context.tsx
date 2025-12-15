@@ -20,7 +20,15 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, 
     const listeners = useRef<Set<() => void>>(null);
 
     const setState = useCallback((updater: InitialState | ((state: InitialState) => InitialState)) => {
-        stateRef.current = typeof updater === 'function' ? updater(stateRef.current) : updater;
+        const prevState = stateRef.current;
+        const nextState =
+            typeof updater === "function" ? (updater as (s: InitialState) => InitialState)(prevState) : updater;
+
+        if (Object.is(prevState, nextState)) {
+            return;
+        }
+
+        stateRef.current = nextState;
         listeners.current!.forEach((l) => l());
     }, []);
 

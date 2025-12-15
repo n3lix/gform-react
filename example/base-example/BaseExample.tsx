@@ -47,9 +47,15 @@ const BaseExample = () => {
                                 id="email2"
                                 type="email"
                                 required
+                                fetchDeps={['email']}
                                 minLength={2}
                                 placeholder="repeat Enter your email"
                                 element={renderInput}
+                        />
+
+                        <GInput formKey={'checkbox'}
+                                id="checkbox"
+                                type="checkbox"
                         />
 
                         <button type={'button'} onClick={() => setC(p => p + 1)}>

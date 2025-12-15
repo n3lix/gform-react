@@ -27,6 +27,8 @@ export const baseValidations = new GValidator()
 
 export const validators: GValidators<SignUpForm> = {
     '*': baseValidations,
+    checkbox: new GValidator()
+        .withRequiredMessage('this field is required'),
     email: new GValidator(baseValidations).withCustomValidation((input) => {
         input.errorText = `${input.formKey} pattern`;
         return /asd/;

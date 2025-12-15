@@ -97,7 +97,6 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>(({
     }, [inputState, element]);
 
     const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
-    const stableFetchDeps = useMemo(() => JSON.stringify(_fetchDeps), [_fetchDeps]);
 
     useEffect(() => {
         if (fetch) {
@@ -110,7 +109,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>(({
                 }
             });
         }
-    }, [stableFetchDeps]);
+    }, [_fetchDeps]);
 
     return _element;
 });
