@@ -57,7 +57,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
     };
 
-    const _checkInputManually = (input: GInputState) => {
+    const _checkInputManually = (input: GInputState<any>) => {
         const exclude: (keyof ValidityState)[] = input.type && (input.pattern || hasCustomValidation(input))  ? ['typeMismatch'] : [];
 
         let validityKey = _findValidityKey({
@@ -115,7 +115,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         input.touched = true;
     };
 
-    const _dispatchChanges = (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => setState(prev => {
+    const _dispatchChanges = (changes: Partial<InitialState> | Partial<GInputState<any>>, key?: string) => setState(prev => {
         if (key) {
             return {...prev, fields: {...prev.fields, [key]: {...prev.fields[key], ...changes}}};
         }

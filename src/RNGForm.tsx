@@ -90,8 +90,8 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
                 dispatchers[fieldKey] = {
                     dispatchChanges: (changes: Partial<GInputState>) => handlers._dispatchChanges(changes, fieldKey),
                     checkValidity: () => {
-                        const result = handlers._createInputChecker(state[fieldKey]);
-                        handlers._dispatchChanges(state[fieldKey], fieldKey);
+                        const result = handlers._createInputChecker(state[fieldKey as keyof T]);
+                        handlers._dispatchChanges(state[fieldKey as keyof T], fieldKey);
                         return result;
                     }
                 };
