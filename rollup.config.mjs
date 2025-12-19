@@ -50,14 +50,14 @@ function babelConfig(es = false) {
         plugins: [
             [
                 '@babel/plugin-transform-runtime',
-                { useESModules: es, version: "7.22.5" }
+                { useESModules: es }
             ]
         ],
         presets: [
             [
                 "@babel/preset-env",
                 {
-                    targets: es ? { esmodules: true } : { node: '10' },
+                    targets: es ? { esmodules: true } : { node: '14' },
                     modules: false,
                     bugfixes: true
                 }

@@ -54,12 +54,12 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
             if (handlers.optimized) {
                 if (onChange) {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
-                        handlers._updateInputHandler(state[e.target.name], e, unknown);
+                        handlers._updateInputHandler(state[e.target.name as keyof T], e, unknown);
                         onChange(state, e);
                     };
                 } else {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
-                        handlers._updateInputHandler(state[e.target.name], e, unknown);
+                        handlers._updateInputHandler(state[e.target.name as keyof T], e, unknown);
                     };
                 }
                 return (
@@ -68,10 +68,10 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
                         onPaste={_onPaste}
                         onKeyDown={_onKeyDown}
                         onKeyUp={_onKeyUp}
-                        onBlur={(e: GChangeEvent<HTMLFormElement>) => handlers._viHandler(state[e.target.name], e)}
+                        onBlur={(e: GChangeEvent<HTMLFormElement>) => handlers._viHandler(state[e.target.name as keyof T], e)}
                         onInvalid={(e: ChangeEvent<HTMLFormElement>) => {
                             e.preventDefault(); // hide default browser validation tooltip
-                            handlers._viHandler(state[e.target.name], e);
+                            handlers._viHandler(state[e.target.name as keyof T], e);
                         }}
                         onChange={_onChange}
                         onSubmit={_onSubmit}>

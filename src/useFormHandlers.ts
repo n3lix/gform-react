@@ -11,7 +11,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
      * @param input the input to be validated
      * @param e the event object
      */
-    const _viHandler = (input: GInputState, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
+    const _viHandler = (input: GInputState<any>, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
         if (!input) return;
 
         const element = e && e.target;
@@ -83,7 +83,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
      * @param e the event object
      * @param unknown
      */
-    const _updateInputHandler = (input: GInputState, e?: GChangeEvent<GDOMElement | HTMLFormElement>, unknown?: {
+    const _updateInputHandler = (input: GInputState<any>, e?: GChangeEvent<GDOMElement | HTMLFormElement>, unknown?: {
         value: unknown
     } | string | number): void => {
         input.value = _extractValue(e, unknown) as GInputState['value'];
