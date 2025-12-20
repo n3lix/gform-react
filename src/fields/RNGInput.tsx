@@ -1,4 +1,4 @@
-import React, {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
+import {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 import {TextInput} from 'react-native';
 
 import {_debounce} from '../helpers';
@@ -73,7 +73,6 @@ const _RNGInput = forwardRef<any, RNGInputProps>(({
     }, [inputState, element]);
 
     const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
-    const stableFetchDeps = useMemo(() => JSON.stringify(_fetchDeps), [_fetchDeps]);
 
     useEffect(() => {
         if (fetch) {
@@ -86,7 +85,7 @@ const _RNGInput = forwardRef<any, RNGInputProps>(({
                 }
             });
         }
-    }, [stableFetchDeps]);
+    }, [_fetchDeps]);
 
     return _element;
 });

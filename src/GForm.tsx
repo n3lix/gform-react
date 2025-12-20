@@ -1,4 +1,4 @@
-import React, {forwardRef, useEffect, useMemo, useRef} from "react";
+import {forwardRef, useEffect, useMemo, useRef} from "react";
 import type {ForwardedRef, ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
@@ -54,12 +54,12 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
             if (handlers.optimized) {
                 if (onChange) {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
-                        handlers._updateInputHandler(state[e.target.name], e, unknown);
+                        handlers._updateInputHandler(state[e.target.name as keyof T], e, unknown);
                         onChange(state, e);
                     };
                 } else {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
-                        handlers._updateInputHandler(state[e.target.name], e, unknown);
+                        handlers._updateInputHandler(state[e.target.name as keyof T], e, unknown);
                     };
                 }
                 return (
@@ -68,10 +68,10 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
                         onPaste={_onPaste}
                         onKeyDown={_onKeyDown}
                         onKeyUp={_onKeyUp}
-                        onBlur={(e: GChangeEvent<HTMLFormElement>) => handlers._viHandler(state[e.target.name], e)}
+                        onBlur={(e: GChangeEvent<HTMLFormElement>) => handlers._viHandler(state[e.target.name as keyof T], e)}
                         onInvalid={(e: ChangeEvent<HTMLFormElement>) => {
                             e.preventDefault(); // hide default browser validation tooltip
-                            handlers._viHandler(state[e.target.name], e);
+                            handlers._viHandler(state[e.target.name as keyof T], e);
                         }}
                         onChange={_onChange}
                         onSubmit={_onSubmit}>
@@ -149,8 +149,6 @@ export type GFormProps<T> =
     Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'onKeyUp' | 'onKeyDown' | 'children'>
     & {
     children?: ReactNode | ReactNode[] | ((state: GFormState<T>) => ReactNode | ReactNode[]);
-    /** @param loader - a component to display while loading (optional). */
-    loader?: ReactNode;
     /** @param stateRef - pass a ref which will points to the current state of the form (optional). */
     stateRef?: RefObject<GFormState<T> | undefined>;
     /** @param onSubmit - a handler for the form submission (optional). */

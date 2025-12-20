@@ -36,7 +36,27 @@ const config = {
                 "allow": ["methods"]
             }
         ]
-    }
+    },
+    overrides: [
+        {
+            files: [
+                "*.config.js",
+                ".eslintrc.js",
+                "eslint-rules/*.js",
+                "jest.setup.js"
+            ],
+            rules: {
+                "@typescript-eslint/no-require-imports": "off"
+            }
+        },
+        {
+            files: ["example/**", "src/**/*.test.tsx"],
+            rules: {
+                indent: "off"
+            }
+
+        }
+    ]
 };
 
 module.exports = config;

@@ -5,8 +5,6 @@ export type PartialPick<T, P extends keyof T> = Omit<T, P> & Partial<Pick<T, P>>
 
 export type IForm<T=any> = {
     [key in keyof T]: GInputState<T[key]>;
-} & {
-    [key: string]: GInputState<any>;
 };
 
 export type FormNode = {

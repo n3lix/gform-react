@@ -1,13 +1,12 @@
-import React, {useMemo, useEffect, forwardRef, useCallback} from "react";
-import type { ReactNode, FC, ReactElement, Ref, RefObject } from "react";
+import {useMemo, useEffect, forwardRef} from "react";
+import type {ReactNode, FC, ReactElement, Ref, RefObject} from "react";
 
-import {_toRawData, _toURLSearchParams, _merge, _buildFormInitialValues} from "./helpers";
+import {_merge, _buildFormInitialValues, _buildRNFormState} from "./helpers";
 import {GFormContextProvider, useFormSelector, useFormStore} from "./form-context";
-import type {RNGFormState, ToRawDataOptions} from "./state";
-import type { GValidators } from "./validations";
-import type { IForm, PartialForm } from "./form";
-import type { GInputState } from "./fields";
-import {selectFirstInvalidField} from "./selectors";
+import type {RNGFormState} from "./state";
+import type {GValidators} from "./validations";
+import type {IForm, PartialForm} from "./form";
+import type {GInputState} from "./fields";
 
 const FormRenderer = forwardRef<any, RNGFormProps<any>>(
     <T, >({
@@ -17,53 +16,25 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
         el: El,
         ...rest
     }: RNGFormProps<T>, ref: React.Ref<any>) => {
-        const {getState, handlers} = useFormStore();
-        const isFormInvalid = useFormSelector(selectFirstInvalidField);
-
-        const getFormState = useCallback(() => {
-            const fields = getState<T>().fields;
-
-            const formState: RNGFormState<T> = {
-                ...fields,
-                isValid: !isFormInvalid,
-                isInvalid: isFormInvalid,
-                toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
-                toURLSearchParams: _toURLSearchParams,
-                checkValidity: () => {
-                    for (const i in fields) {
-                        const valid = fields[i].checkValidity();
-                        if (!valid) {
-                            return false;
-                        }
-                    }
-                    return true;
-                },
-                dispatchChanges: (changes: PartialForm<T> & {
-                    [key: string]: Partial<GInputState<any>>
-                }) => handlers._dispatchChanges({
-                    fields: _merge<IForm<T> & {
-                        [key: string]: GInputState;
-                    }>({}, fields, changes)
-                })
-            };
-
-            if (stateRef) stateRef.current = formState;
-
-            return formState;
-        }, [isFormInvalid]);
+        const {handlers, getState} = useFormStore();
+        const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const formComponent = useMemo(() => {
-            const state = getFormState();
+            const state = _buildRNFormState(fields, handlers._dispatchChanges);
 
+            if (stateRef) stateRef.current = state;
             const formChildren = typeof children === 'function' ? children(state) : children;
 
-            return <El {...rest} ref={ref}>
-                {formChildren}
-            </El>;
-        }, [getFormState, children]);
+            return (
+                <El {...rest} ref={ref}>
+                    {formChildren}
+                </El>
+            );
+        }, [children, fields]);
 
         useEffect(() => {
-            const state = getFormState();
+            const initialStateFields = getState<T>().fields;
+            const state = _buildRNFormState(initialStateFields, handlers._dispatchChanges);
 
             if (onInit) {
                 const changes = onInit(state);
@@ -79,23 +50,12 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
                 }
             }
 
-            const dispatchers: Record<string, Record<string, (changes: Partial<GInputState>) => void>> = {};
-            
             if (__DEBUG__) {
                 console.log('checking for initial values');
             }
             const fields = getState().fields;
 
             for (const fieldKey in fields) {
-                dispatchers[fieldKey] = {
-                    dispatchChanges: (changes: Partial<GInputState>) => handlers._dispatchChanges(changes, fieldKey),
-                    checkValidity: () => {
-                        const result = handlers._createInputChecker(state[fieldKey]);
-                        handlers._dispatchChanges(state[fieldKey], fieldKey);
-                        return result;
-                    }
-                };
-
                 const field = fields[fieldKey];
 
                 //we don't want to apply validation on empty fields so skip it.
@@ -111,8 +71,7 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
                  */
                 handlers._viHandler(field);
             }
-            handlers._dispatchChanges({fields: _merge(dispatchers, state)});
-        }, [getFormState]);
+        }, []);
 
         return formComponent;
     }

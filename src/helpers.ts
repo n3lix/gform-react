@@ -2,7 +2,7 @@ import {Children, isValidElement} from 'react';
 import type {PropsWithChildren, ReactElement, ReactNode} from 'react';
 import type {GInputInitialState, GInputProps, GInputState, GInputStateMutable} from './fields';
 import type {FormNode, FormTreeResult, GChangeEvent, GDOMElement, IForm, PartialForm} from './form';
-import type {GFormState, InitialState, RawData, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
+import type {GFormState, InitialState, RawData, RNGFormState, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
 
@@ -320,7 +320,7 @@ export function _toURLSearchParams<T>(this: GFormState<T>, options?: ToURLSearch
     return new URLSearchParams(data); // this is ok because URLSearchParams will stringify the values (boolean/number)
 }
 
-function __debounce(this: { [key: string]: { timerId: NodeJS.Timeout } }, timeout: number, id: string): Promise<void> {
+function __debounce(this: { [key: string]: { timerId: number } }, timeout: number, id: string): Promise<void> {
     return new Promise(resolve => {
         if (this[id]?.timerId)
             clearTimeout(this[id].timerId);
@@ -395,6 +395,36 @@ export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElemen
             this.isValid = formElement && formElement.checkValidity() || false;
             this.isInvalid = !this.isValid;
             return this.isValid;
+        },
+        dispatchChanges: (changes: PartialForm<T> & {
+            [key: string]: Partial<GInputState<any>>
+        }) => dispatchChanges({
+            fields: _merge<IForm<T> & {
+                [key: string]: GInputState;
+            }>({}, fields, changes)
+        })
+    };
+
+    return formState;
+};
+
+export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void) => {
+    const isFormValid = _checkIfFormIsValid(fields);
+
+    const formState: RNGFormState<T> = {
+        ...fields,
+        isValid: isFormValid,
+        isInvalid: !isFormValid,
+        toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
+        toURLSearchParams: _toURLSearchParams,
+        checkValidity: () => {
+            for (const i in fields) {
+                const valid = fields[i].checkValidity();
+                if (!valid) {
+                    return false;
+                }
+            }
+            return true;
         },
         dispatchChanges: (changes: PartialForm<T> & {
             [key: string]: Partial<GInputState<any>>
