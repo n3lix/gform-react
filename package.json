@@ -1,6 +1,6 @@
 {
   "name": "gform-react",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "Build generic forms with validations for React-based applications",
   "author": "Tal Maman, Arkady Birko",
   "license": "MIT",
@@ -11,7 +11,7 @@
     "build:dev": "rollup -c --environment build:development",
     "build:prod": "rollup -c --environment build:production",
     "prebuild": "npm run tscheck && npm run lint && npm run security:check && npm test",
-    "build": "npm run prebuild && npm run clean && npm run build:dev && npm run build:prod",
+    "build": "npm run clean && npm run build:dev && npm run build:prod",
     "tscheck": "tsc --noEmit",
     "security:check": "npm audit --production --audit-level high",
     "lint": "eslint src --ext .ts --ext .tsx",

@@ -1,4 +1,4 @@
-import React, {useCallback, useRef, useState} from "react";
+import {useCallback, useRef, useState} from "react";
 import Tabs from "../tabs/Tabs";
 import {Tab} from "../tabs";
 import {GForm} from "../../src/GForm";
@@ -36,7 +36,7 @@ const BaseExample = () => {
                         <GInput formKey={'email'}
                                 id="email"
                                 type="email"
-                            placeholder="Enter your email"
+                                placeholder="Enter your email"
                                 required
                                 minLength={1}
                                 validatorKey={'email'}

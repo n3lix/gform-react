@@ -16,10 +16,11 @@
     "isolatedModules": true,
     "declaration": false,
     "noEmit": false,
-    "jsx": "react",
+    "jsx": "react-jsx",
     "baseUrl": "./src",
     "sourceMap": true,
     "outDir": "./dist/",
+    "types": ["react", "jest", "@testing-library/jest-dom"],
     "paths": {
       "@generic-form/*": ["*"]
     },

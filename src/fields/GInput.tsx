@@ -1,4 +1,4 @@
-import React, {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
+import {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 
 import {_debounce} from '../helpers';
 import type {GInputProps, GInputState, GElementProps} from '.';

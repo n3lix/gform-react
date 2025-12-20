@@ -1,4 +1,4 @@
-import React, {forwardRef, useEffect, useMemo, useRef} from "react";
+import {forwardRef, useEffect, useMemo, useRef} from "react";
 import type {ForwardedRef, ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
@@ -149,8 +149,6 @@ export type GFormProps<T> =
     Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'onKeyUp' | 'onKeyDown' | 'children'>
     & {
     children?: ReactNode | ReactNode[] | ((state: GFormState<T>) => ReactNode | ReactNode[]);
-    /** @param loader - a component to display while loading (optional). */
-    loader?: ReactNode;
     /** @param stateRef - pass a ref which will points to the current state of the form (optional). */
     stateRef?: RefObject<GFormState<T> | undefined>;
     /** @param onSubmit - a handler for the form submission (optional). */

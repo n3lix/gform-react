@@ -12,10 +12,12 @@ module.exports = {
                 "onlyRemoveTypeImports": true
             }
         ],
-        "@babel/preset-react",
-        {
-            runtime: "automatic"
-        }
+        [
+            "@babel/preset-react",
+            {
+                runtime: "automatic"
+            }
+        ]
     ],
     comments: false,
     exclude: /node_modules/,
