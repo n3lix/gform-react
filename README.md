@@ -1,28 +1,24 @@
 <div align="center">
-        <a href="https://gform-react.onrender.com" title="GForm React - Fast and Simple React Forms with validation">
-            <img src="https://gform-react.onrender.com/gform-logo.png" alt="gform-react logo" />
-        </a>
+    <a href="https://gform-react.onrender.com" title="GForm React – Fast and Simple React Forms with Validation">
+        <img src="https://gform-react.onrender.com/gform-logo.png" alt="gform-react logo" />
+    </a>
     <h1>gform-react</h1>
-    <p>A lightweight, UI‑agnostic React form library that focuses on <b>form logic</b>, <b>validation</b> and <b>performance</b></p>
-    <p>Use any UI library you want (MUI, Chakra, Tailwind, custom components, etc.) — it only cares about the form and the inputs inside</p>
+    <p>A lightweight React form library built for <b>performance</b>, <b>validation</b>, and clean <b>form logic</b></p>
 </div>
-
 
 ## Features
 
 - **Lightweight**
-- **Tree‑Shakeable**
-- **Native HTML5 Constraint Validations**
+- **Tree‑shakeable**
+- **Minimal re-renders** — only updates fields that change
+- **Native HTML Constraint Validations**
 - **Custom Validations**
 - **Custom Async Validations**
-- **Support Yup, Zod etc.**
-- **Dynamic forms — add/remove fields on the fly**
-- **UI‑agnostic** — works with any UI library or your custom components
-- **Minimal re-renders** — only updates fields that change
+- **Supports Yup, Zod, and more**
+- **Dynamic forms** — add/remove fields on the fly
 - **Accessibility‑friendly**  
   Automatically sets `aria-required` and `aria-invalid`
 - **React Native support**
-- **Simple API with powerful capabilities**
 
 <div align="center">
   <a href="https://bundlephobia.com/package/gform-react">
@@ -92,16 +88,11 @@ const App: FC = () => {
 };
 ```
 
----
-
-
 ## Documentation
 
 Full documentation, examples, and API reference:
 
 https://gform-react.onrender.com
-
----
 
 ## Installation
 
@@ -119,8 +110,6 @@ yarn add gform-react
 
 ## Peer dependencies
 react >=16.8.0, react-dom >=16.8.0 are peer dependencies
-
----
 
 ## License
 
