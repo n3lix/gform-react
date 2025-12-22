@@ -20,7 +20,7 @@
   Automatically sets `aria-required` and `aria-invalid`
 - **React Native support**
 
----
+<br/>
 <div align="center">
   <a href="https://bundlephobia.com/package/gform-react">
     <img src="https://img.shields.io/bundlephobia/min/gform-react?label=minified%20size&color=darkergreen" alt="Minified size">
@@ -40,8 +40,7 @@
     <img src="https://img.shields.io/npm/l/gform-react" alt="MIT License">
   </a>
 </div>
-
----
+<br/>
 
 ## QuickStart
 ```tsx
