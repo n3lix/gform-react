@@ -1,37 +1,46 @@
-![gform-react](https://gform-react.onrender.com/gform-logo.png)
-
-[![Minified size](https://img.shields.io/bundlephobia/min/gform-react?label=minified%20size&color=darkergreen)](https://bundlephobia.com/package/gform-react)
-[![Gzip size](https://img.shields.io/bundlephobia/minzip/gform-react?label=gzip%20size&color=darkergreen)](https://bundlephobia.com/package/gform-react)
-![npm downloads](https://img.shields.io/npm/dm/gform-react)
-![React peer dependency](https://img.shields.io/npm/dependency-version/gform-react/peer/react)
-![React DOM peer dependency](https://img.shields.io/npm/dependency-version/gform-react/peer/react-dom)
-[![MIT License](https://img.shields.io/npm/l/gform-react)](https://unpkg.com/gform-react@latest/LICENSE.md)
----
-
-Build generic forms easily with validations for React applications.
-
-gform-react is a lightweight, UI‑agnostic form engine that focuses on **form logic**, **validation**, and **performance**.  
-Use any UI library you want (Material UI, Chakra, Tailwind, custom components, etc.) — it only cares about the form and the inputs inside.
-
----
+<div align="center">
+    <a href="https://gform-react.onrender.com" title="GForm React – A lightweight React form library built for performance, validation, and clean form logic">
+        <img src="https://gform-react.onrender.com/gform-logo.png" alt="gform-react logo" />
+    </a>
+    <h1>gform-react</h1>
+    <p>A lightweight React form library built for <b>performance</b>, <b>validation</b>, and clean <b>form logic</b></p>
+</div>
 
 ## Features
 
 - **Lightweight**
-- **Tree‑Shakeable**
-- **Native HTML5 Constraint Validations**
+- **Tree‑shakeable**
+- **Minimal re-renders** — only updates fields that change
+- **Native HTML Constraint Validations**
 - **Custom Validations**
 - **Custom Async Validations**
-- **Support Yup, Zod etc.**
-- **Dynamic forms — add/remove fields on the fly**
-- **UI‑agnostic** — works with any UI library or your custom components
-- **Minimal re-renders** — only updates fields that change
+- **Supports Yup, Zod, and more**
+- **Dynamic forms** — add/remove fields on the fly
 - **Accessibility‑friendly**  
   Automatically sets `aria-required` and `aria-invalid`
 - **React Native support**
-- **Simple API with powerful capabilities**
 
----
+<br/>
+<div align="center">
+  <a href="https://bundlephobia.com/package/gform-react">
+    <img src="https://img.shields.io/bundlephobia/min/gform-react?label=minified%20size&color=darkergreen" alt="Minified size">
+  </a>
+  
+  <a href="https://bundlephobia.com/package/gform-react">
+    <img src="https://img.shields.io/bundlephobia/minzip/gform-react?label=gzip%20size&color=darkergreen" alt="Gzip size">
+  </a>
+  
+  <img src="https://img.shields.io/npm/dm/gform-react" alt="npm downloads">
+  
+  <img src="https://img.shields.io/npm/dependency-version/gform-react/peer/react" alt="React peer dependency">
+  
+  <img src="https://img.shields.io/npm/dependency-version/gform-react/peer/react-dom" alt="React DOM peer dependency">
+  
+  <a href="https://unpkg.com/gform-react@latest/LICENSE.md">
+    <img src="https://img.shields.io/npm/l/gform-react" alt="MIT License">
+  </a>
+</div>
+<br/>
 
 ## QuickStart
 ```tsx
@@ -81,16 +90,11 @@ const App: FC = () => {
 };
 ```
 
----
-
-
 ## Documentation
 
 Full documentation, examples, and API reference:
 
 https://gform-react.onrender.com
-
----
 
 ## Installation
 
@@ -108,8 +112,6 @@ yarn add gform-react
 
 ## Peer dependencies
 react >=16.8.0, react-dom >=16.8.0 are peer dependencies
-
----
 
 ## License
 
