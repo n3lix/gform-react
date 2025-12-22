@@ -1,4 +1,4 @@
 export { GForm } from './GForm';
 export { GInput } from './fields/GInput';
-export { GValidator } from './validations/GValidator';
+export { GValidator, type GValidators } from './validations';
 export { useFormSelector } from './form-context';
