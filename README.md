@@ -8,10 +8,11 @@
 [![MIT License](https://img.shields.io/npm/l/gform-react)](https://unpkg.com/gform-react@latest/LICENSE.md)
 ---
 
-### Build generic forms easily with validations for React applications.
+Build generic forms easily with validations for React applications.
 
-`gform-react` is a lightweight, UI‑agnostic form engine that focuses on **form logic**, **validation**, and **performance**.  
+gform-react is a lightweight, UI‑agnostic form engine that focuses on **form logic**, **validation**, and **performance**.  
 Use any UI library you want (Material UI, Chakra, Tailwind, custom components, etc.) — it only cares about the form and the inputs inside.
+
 ---
 
 ## Features
