@@ -1,5 +1,5 @@
 <div align="center">
-    <a href="https://gform-react.onrender.com" title="GForm React – Fast and Simple React Forms with Validation">
+    <a href="https://gform-react.onrender.com" title="GForm React – A lightweight React form library built for performance, validation, and clean form logic">
         <img src="https://gform-react.onrender.com/gform-logo.png" alt="gform-react logo" />
     </a>
     <h1>gform-react</h1>
