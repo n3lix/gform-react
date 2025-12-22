@@ -47,11 +47,12 @@ function babelConfig(es = false) {
         extensions,
         exclude: 'node_modules/**',
         babelHelpers: 'runtime',
+        babelrc: false,
+        configFile: false,
+        babelrcRoots: false,
+        comments: false,
         plugins: [
-            [
-                '@babel/plugin-transform-runtime',
-                { useESModules: es }
-            ]
+            ['@babel/plugin-transform-runtime', { useESModules: es }]
         ],
         presets: [
             [
@@ -61,8 +62,11 @@ function babelConfig(es = false) {
                     modules: false,
                     bugfixes: true
                 }
-            ]
-        ]
+            ],
+            "@babel/preset-typescript",
+            "@babel/preset-react"
+        ],
+        sourceType: "module"
     });
 }
 

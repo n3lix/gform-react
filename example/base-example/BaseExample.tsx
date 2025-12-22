@@ -1,4 +1,4 @@
-import {useCallback, useRef, useState} from "react";
+import React, {useCallback, useRef, useState} from "react";
 import Tabs from "../tabs/Tabs";
 import {Tab} from "../tabs";
 import {GForm} from "../../src/GForm";
@@ -20,7 +20,7 @@ const BaseExample = () => {
         return <div>
             <input {...props} />
             {input.error && <small>{input.errorText}</small>}
-        </div>
+        </div>;
     }, []);
 
     return (
