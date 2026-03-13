@@ -2,7 +2,7 @@ import React, {forwardRef, useEffect, useMemo, useRef} from "react";
 import type {ForwardedRef, ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
-import {_buildFormInitialValues, _merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
+import {_merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
 import type {GFormState} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
@@ -179,17 +179,12 @@ export type GFormProps<T> =
  */
 export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(
     <T, >({children, validators, optimized, ...props}: GFormProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
-        const initialState = useMemo(() => {
-            return _buildFormInitialValues<T>(
-                typeof children === 'function'
-                    ? children({} as GFormState<T>)
-                    : children
-            );
-        }, [children]);
+        const initialState = useMemo(() => ({ fields: {} }), []);
+        const formRef = useRef<HTMLFormElement>(null);
 
         return (
-            <GFormContextProvider initialState={initialState} validators={validators} optimized={optimized}>
-                <FormRenderer ref={ref} {...props}>
+            <GFormContextProvider initialState={initialState} formRef={formRef} validators={validators} optimized={optimized}>
+                <FormRenderer ref={_mergeRefs(formRef, ref)} {...props}>
                     {children}
                 </FormRenderer>
             </GFormContextProvider>

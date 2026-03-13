@@ -5,29 +5,55 @@ import type {GInputProps, GInputState, GElementProps} from '.';
 import {useFormSelector, useFormStore} from "../form-context";
 import {makeSelectFields} from "../selectors";
 
-const _GInput = forwardRef<HTMLInputElement, GInputProps>(({
-    formKey,
-    element,
-    title,
-    type = 'text',
-    fetch,
-    fetchDeps,
-    optimized,
-    debounce = 300,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    defaultChecked,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    defaultValue,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    checked,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    validatorKey,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    value,
-    ...rest
-}, ref) => {
-    const inputState = useFormSelector(state => state.fields[formKey]);
+const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
     const store = useFormStore();
+
+    const {
+        formKey,
+        element,
+        title,
+        type = 'text',
+        fetch,
+        fetchDeps,
+        optimized,
+        debounce = 300,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        defaultChecked,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        defaultValue,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        checked,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        validatorKey,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        value,
+        ...rest
+    } = props;
+    if (!store.getState().fields[formKey]) {
+        if (__DEBUG__) {
+            console.log('[GInput] -', 'registering input', `(${formKey})`, props);
+        }
+        store.registerField(props);
+    }
+
+    const inputState = useFormSelector(state => state.fields[formKey]);
+    const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
+
+    useEffect(() => {
+        if (inputState.value) {
+            store.handlers._viHandler(inputState);
+            const element = store.getInputElement(formKey);
+            if (element) {
+                element.checkValidity();
+            }
+        }
+        return () => {
+            if (__DEBUG__) {
+                console.log('[GInput] -', 'unregistering input', `(${formKey})`);
+            }
+            store.unregisterField(formKey);
+        };
+    }, []);
 
     const _element = useMemo(() => {
         let value: any, checked;
@@ -95,8 +121,6 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>(({
             <input {..._props} />
         );
     }, [inputState, element]);
-
-    const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
 
     useEffect(() => {
         if (fetch) {

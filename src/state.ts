@@ -1,5 +1,5 @@
 import type {IForm, PartialForm} from "./form";
-import type { GInputState } from "./fields";
+import type {GInputProps, GInputState} from "./fields";
 import {useFormHandlers} from "./useFormHandlers";
 
 export type RawData<T> = {
@@ -52,4 +52,7 @@ export type Store = {
     setState: <T>(updater: InitialState<T> | ((state: InitialState<T>) => InitialState<T>)) => void;
     subscribe: (listener: () => void) => () => void;
     handlers: ReturnType<typeof useFormHandlers>;
+    registerField: (config: GInputProps) => void;
+    unregisterField: (formKey: string) => void;
+    getInputElement: (formKey: string) => HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | undefined;
 }
