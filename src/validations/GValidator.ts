@@ -1,4 +1,5 @@
 import type { GConstraintValidator, GConstraintValidatorHandler, GCustomValidatorHandler, GCustomValidatorHandlerAsync } from ".";
+import type {GInputState} from "../fields";
 
 export let handlersMap: { [key: string]: string };
 export let validityMap: { [key in keyof Partial<ValidityState>]: any };
@@ -146,7 +147,8 @@ export class GValidator<T = any> {
             }
             this.track.push(validityKey);
         }
-        this._constraintHandlers.push((input, key) => {
+
+        const constraintHandler = (input: GInputState<T>, key?: keyof ValidityState) => {
             if (__DEV__) {
                 if (validityKey && validityMap[validityKey] && typeof input[validityMap[validityKey]] === 'undefined') {
                     console.warn(`DEV ONLY - [Missing Prop] - the input '${input.formKey}' has registered validator for the violation '${validityKey}' but the input hasn't described the constraint '${validityMap[validityKey]}'.\nadd '${validityMap[validityKey]}' to the input props.\nexample:\n<GInput formKey='${input.formKey}' ${validityMap[validityKey]}={...} />\n\nor either remove '.${handlersMap[validityMap[validityKey]]}(...)' validation`);
@@ -158,7 +160,11 @@ export class GValidator<T = any> {
                 return true;
             }
             return false;
-        });
+        };
+
+        Object.defineProperty(constraintHandler, 'name', {value: `constraintHandler_${validityKey}`});
+
+        this._constraintHandlers.push(constraintHandler);
 
         return this;
     }

@@ -132,22 +132,27 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         const fields = getState().fields;
 
         for (const index in inputValidator.constraintHandlers) {
-            const result = inputValidator.constraintHandlers[index](input, validityKey);
+            const handler = inputValidator.constraintHandlers[index];
+            const result = handler(input, validityKey);
+            input.error = _checkResult(result, input.value);
+
             if (__DEBUG__) {
-                console.log('[_validateInput] -', `validation results for constraint handler (${index}):\n`, inputValidator.constraintHandlers[index], '\n\nvalidator result:', result, '\nviolation:', input.error, `(${input.error ? 'failed' : 'passed'})`);
+                const violation = handler.name.split('_')[1];
+                console.log('[_validateInput] -', `validation results for constraint handler (${index}):\n`, handler, '\n\nvalidator result:', result, `(${input.error ? 'failed' : 'passed'})`, '\nviolation:', violation);
             }
 
-            input.error = _checkResult(result, input.value);
             if (input.error) return;
         }
 
         for (const index in inputValidator.handlers) {
-            const result = inputValidator.handlers[index](input, fields);
+            const handler = inputValidator.handlers[index];
+            const result = handler(input, fields);
+            input.error = _checkResult(result, input.value);
+
             if (__DEBUG__) {
-                console.log('[_validateInput] -', `validation results for custom handler (${index}):\n`, inputValidator.handlers[index], '\n\nvalidator result:', result, '\nviolation:', input.error, `(${input.error ? 'failed' : 'passed'})`);
+                console.log('[_validateInput] -', `validation results for custom handler (${index}):\n`, handler, '\n\nvalidator result:', result, `(${input.error ? 'failed' : 'passed'})`, '\nviolation:', `customError(${input.errorText})`);
             }
 
-            input.error = _checkResult(result, input.value);
             if (input.error) return;
         }
 
@@ -158,12 +163,14 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             _debounce(input.debounce || 300, `${input.gid}-async`).then(() => {
                 const validateAsync = async () => {
                     for (const index in inputValidator.asyncHandlers) {
-                        const result = await inputValidator.asyncHandlers[index](input, fields);
+                        const handler = inputValidator.asyncHandlers[index];
+                        const result = await handler(input, fields);
+                        input.error = _checkResult(result, input.value);
+
                         if (__DEBUG__) {
-                            console.log('[_validateInput] -', `validation results for custom async handler (${index}):\n`, inputValidator.asyncHandlers[index], '\n\nvalidator result:', result, '\nviolation:', input.error, `(${input.error ? 'failed' : 'passed'})`);
+                            console.log('[_validateInput] -', `validation results for custom async handler (${index}):\n`, handler, '\n\nvalidator result:', result, `(${input.error ? 'failed' : 'passed'})`, '\nviolation:', `customErrorAsync(${input.errorText})`);
                         }
 
-                        input.error = _checkResult(result, input.value);
                         if (input.error) break;
                     }
                     if (!input.error) input.errorText = '';
