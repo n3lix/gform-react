@@ -1,10 +1,10 @@
 import React, {createContext, useCallback, useContext, useMemo, useRef, useSyncExternalStore} from 'react';
-import type {FC, PropsWithChildren, PropsWithoutRef, RefObject} from 'react';
+import type {FC, PropsWithChildren, RefObject} from 'react';
 
 import {useFormHandlers} from "./useFormHandlers";
 import type {InitialState, Store} from "./state";
 import type {GValidators} from "./validations";
-import type {GInputProps, GInputState} from './fields';
+import type {GInputInitialState, GInputProps, GInputState, RNGInputProps} from './fields';
 import {_buildInputInitialValues} from "./helpers";
 
 const GFormContext = createContext<Store>({} as Store);
@@ -13,7 +13,7 @@ type GFormContextProviderProps = PropsWithChildren & {
     initialState: InitialState;
     validators?: GValidators;
     optimized?: boolean;
-    formRef: RefObject<HTMLFormElement | null>;
+    formRef?: RefObject<HTMLFormElement | null>;
 };
 
 export const GFormContextProvider: FC<GFormContextProviderProps> = ({
@@ -42,11 +42,12 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
     const handlers = useFormHandlers(() => stateRef.current, setState, validators, optimized);
 
     const getInputElement = useCallback((formKey: string) => {
-        const element: HTMLInputElement = formRef.current?.[formKey];
-        return element;
+        if (formRef && formRef.current) {
+            return formRef.current[formKey];
+        }
     }, []);
 
-    const registerField = useCallback((config: PropsWithoutRef<GInputProps>) => {
+    const registerField = useCallback((config: GInputProps | RNGInputProps) => {
         /* mutate stateRef without notifying listeners
          it is safe because this field didn't exist (no component was subscribed to it) */
         const prev = stateRef.current;
@@ -58,7 +59,7 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
             return;
         }
 
-        const inputState = _buildInputInitialValues(config);
+        const inputState = _buildInputInitialValues(config as GInputInitialState);
 
         stateRef.current = {
             ...prev,

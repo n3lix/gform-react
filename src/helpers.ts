@@ -60,6 +60,7 @@ export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputSt
         gid: _generateIdUnsafe(),
         error: false,
         errorText: '',
+        //eslint-disable-next-line @typescript-eslint/no-unused-vars
         dispatchChanges<C>(changes: Partial<GInputState | C>) {
         },
         checkValidity(): boolean {
@@ -68,9 +69,8 @@ export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputSt
     };
 };
 
-export const _findValidityKey = (validity: Partial<ValidityState>, exclude: (keyof ValidityState)[] = []): keyof ValidityState | undefined => {
+export const _findValidityKey = (validity: Partial<ValidityState>): keyof ValidityState | undefined => {
     for (const key in validity) {
-        if (exclude.includes(key as keyof ValidityState)) continue;
         if (key !== 'valid' && validity[key as keyof ValidityState]) {
             if (__DEBUG__) {
                 console.log('[findValidityKey] -', 'found validity key:', key);

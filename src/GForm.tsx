@@ -1,5 +1,5 @@
 import React, {forwardRef, useEffect, useMemo, useRef} from "react";
-import type {ForwardedRef, ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
+import type {ForwardedRef, Ref, ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
 import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
 import {_merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
@@ -8,7 +8,9 @@ import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
 import type {GValidators} from "./validations";
 
-const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
+type FormRendererProps<T> = GFormProps<T> & { formRef: RefObject<HTMLFormElement|null> };
+
+const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
     <T, >({
         stateRef,
         onSubmit,
@@ -18,9 +20,9 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
         onKeyUp,
         children,
         onInit,
+        formRef,
         ...rest
-    }: GFormProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
-        const formRef = useRef<HTMLFormElement>(null);
+    }: FormRendererProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
         const {handlers, getState} = useFormStore();
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
@@ -143,7 +145,7 @@ const FormRenderer = forwardRef<HTMLFormElement, GFormProps<any>>(
 
         return formComponent;
     }
-) as <T>(props: GFormProps<T> & { ref?: React.Ref<HTMLFormElement> }) => React.ReactElement | null;
+) as <T>(props: FormRendererProps<T> & { ref?: Ref<HTMLFormElement> }) => React.ReactElement | null;
 
 export type GFormProps<T> =
     Omit<DetailedHTMLProps<FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>, 'onSubmit' | 'onPaste' | 'onChange' | 'onKeyUp' | 'onKeyDown' | 'children'>
@@ -184,7 +186,7 @@ export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(
 
         return (
             <GFormContextProvider initialState={initialState} formRef={formRef} validators={validators} optimized={optimized}>
-                <FormRenderer ref={_mergeRefs(formRef, ref)} {...props}>
+                <FormRenderer ref={ref}  formRef={formRef} {...props}>
                     {children}
                 </FormRenderer>
             </GFormContextProvider>

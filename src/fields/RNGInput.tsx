@@ -1,31 +1,54 @@
-import {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
+import {FormEvent, forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 import {TextInput} from 'react-native';
 
 import {_debounce} from '../helpers';
-import type {GInputState, RNGInputProps} from '.';
 import {useFormSelector, useFormStore} from "../form-context";
 import {makeSelectFields} from "../selectors";
+import type {GInputState, RNGInputProps} from '.';
+import type {GDOMElement} from "../form";
 
-const _RNGInput = forwardRef<any, RNGInputProps>(({
-    formKey,
-    element,
-    type,
-    fetch,
-    fetchDeps,
-    debounce = 300,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    defaultValue,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    validatorKey,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    value,
-    ...rest
-}, ref) => {
-    const inputState = useFormSelector(state => state.fields[formKey]);
+const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
     const store = useFormStore();
 
+    const {
+        formKey,
+        element,
+        type,
+        fetch,
+        fetchDeps,
+        debounce = 300,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        defaultValue,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        validatorKey,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        value,
+        ...rest
+    } = props;
+    if (!store.getState().fields[formKey]) {
+        if (__DEBUG__) {
+            console.log('[GInput] -', 'registering input', `(${formKey})`, props);
+        }
+        store.registerField(props);
+    }
+
+    const inputState = useFormSelector(state => state.fields[formKey]);
+    const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
+
+    useEffect(() => {
+        if (inputState.value) {
+            store.handlers._viHandler(inputState, {target: store.getInputElement(formKey)} as unknown as FormEvent<GDOMElement>);
+        }
+        return () => {
+            if (__DEBUG__) {
+                console.log('[GInput] -', 'unregistering input', `(${formKey})`);
+            }
+            store.unregisterField(formKey);
+        };
+    }, []);
+
     const _element = useMemo(() => {
-        const value = inputState.value || '';
+        const value = inputState.value ?? '';
 
         const _props = {
             ...rest,
@@ -53,18 +76,6 @@ const _RNGInput = forwardRef<any, RNGInputProps>(({
                 store.handlers._updateInputHandler(inputState, undefined, {value: e});
             };
 
-        if (!inputState.touched) {
-            _props.onFocus = rest.onFocus ?
-                (e) => {
-                    rest.onFocus!(e);
-                    inputState.dispatchChanges({touched: true});
-                }
-                :
-                () => {
-                    inputState.dispatchChanges({touched: true});
-                };
-        }
-
         if (element) {
             return (element as (input: GInputState, props: any) => ReactNode)(inputState, _props);
         }
@@ -72,7 +83,6 @@ const _RNGInput = forwardRef<any, RNGInputProps>(({
         return <TextInput {..._props}/>;
     }, [inputState, element]);
 
-    const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
 
     useEffect(() => {
         if (fetch) {

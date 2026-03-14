@@ -96,8 +96,10 @@ export type RNGFormProps<T> = {
  */
 export const RNGForm = forwardRef<any, RNGFormProps<any>>(
     <T, >({children, validators, ...props}: RNGFormProps<T>, ref: React.Ref<any>) => {
+        const initialState = useMemo(() => ({ fields: {} }), []);
+
         return (
-            <GFormContextProvider initialState={{fields: {}}} validators={validators}>
+            <GFormContextProvider initialState={initialState} validators={validators}>
                 <FormRenderer ref={ref} {...props}>
                     {children}
                 </FormRenderer>

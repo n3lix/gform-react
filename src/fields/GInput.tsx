@@ -1,9 +1,10 @@
-import React, {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
+import React, {FormEvent, forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 
 import {_debounce} from '../helpers';
 import type {GInputProps, GInputState, GElementProps} from '.';
 import {useFormSelector, useFormStore} from "../form-context";
 import {makeSelectFields} from "../selectors";
+import {type GDOMElement} from "../form";
 
 const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
     const store = useFormStore();
@@ -41,11 +42,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
 
     useEffect(() => {
         if (inputState.value) {
-            store.handlers._viHandler(inputState);
-            const element = store.getInputElement(formKey);
-            if (element) {
-                element.checkValidity();
-            }
+            store.handlers._viHandler(inputState, {target: store.getInputElement(formKey)} as unknown as FormEvent<GDOMElement>);
         }
         return () => {
             if (__DEBUG__) {
@@ -59,6 +56,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
         let value: any, checked;
 
         if (type === 'checkbox') checked = inputState.value || false;
+        else if (type === 'number') value = inputState.value || 0;
         else value = inputState.value || '';
 
         const _props = {
@@ -99,18 +97,6 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
                 } : (e, unknown?: { value: unknown } | string | number) => {
                     store.handlers._updateInputHandler(inputState, e, unknown);
                 };
-
-            if (!inputState.touched && inputState.dispatchChanges) {
-                _props.onFocus = rest.onFocus ?
-                    (e) => {
-                        rest.onFocus!(e);
-                        inputState.dispatchChanges({touched: true});
-                    }
-                    :
-                    () => {
-                        inputState.dispatchChanges({touched: true});
-                    };
-            }
         }
 
         if (element) {
