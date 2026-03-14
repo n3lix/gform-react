@@ -5,9 +5,11 @@ import {GForm} from "../../src/GForm";
 import {SignUpForm, validators} from "../validators";
 import {GInput} from "../../src/fields/GInput";
 import {useFormSelector} from "../../src/form-context";
+import TestForm from "./TestForm";
+
 const Test = () => {
     const city = useFormSelector(state => state.fields.city);
-    console.log(city);
+    // console.log(city);
     return (<div>test!!!!!!!</div>);
 }
 
@@ -45,9 +47,8 @@ const BaseExample = () => {
 
                         <GInput formKey={'city'}
                                 id="email2"
-                                type="email"
+                                type="text"
                                 required
-                                fetchDeps={['email']}
                                 minLength={2}
                                 placeholder="repeat Enter your email"
                                 element={renderInput}
@@ -65,7 +66,7 @@ const BaseExample = () => {
                         <Test/>
 
                         {
-                            c > 0 && <div><GInput formKey={'test'}
+                            c > 0 && c < 2 && <div><GInput formKey={'test'}
                                              id="test"
                                              type="text"
                                              required
@@ -83,18 +84,21 @@ const BaseExample = () => {
                 </GForm>
             </Tab>
             <Tab index={1} header={<button>Phone</button>}>
-                <GForm>
-                    <GInput formKey={'phone'}
-                            id="phone"
-                            type="tel"
-                            placeholder="Enter your phone number"
-                            autoComplete="phone"
-                            required
-                            element={(input, props) => <div>
-                                <input {...props} />
-                                {input.error && <small>{input.errorText}</small>}
-                            </div>}
-                    />
+                <GForm onSubmit={(state, e) => {
+                    console.log(state);
+                }}>
+                    {/*<GInput formKey={'phone'}*/}
+                    {/*        id="phone"*/}
+                    {/*        type="tel"*/}
+                    {/*        placeholder="Enter your phone number"*/}
+                    {/*        autoComplete="phone"*/}
+                    {/*        required*/}
+                    {/*        element={(input, props) => <div>*/}
+                    {/*            <input {...props} />*/}
+                    {/*            {input.error && <small>{input.errorText}</small>}*/}
+                    {/*        </div>}*/}
+                    {/*/>*/}
+                    <TestForm />
 
                     <button type="submit">
                         Send Verification Code

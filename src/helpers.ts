@@ -1,12 +1,10 @@
-import {Children, isValidElement} from 'react';
-import type {PropsWithChildren, ReactElement, ReactNode} from 'react';
-import type {GInputInitialState, GInputProps, GInputState, GInputStateMutable} from './fields';
-import type {FormNode, FormTreeResult, GChangeEvent, GDOMElement, IForm, PartialForm} from './form';
+import type {GInputInitialState, GInputState} from './fields';
+import type {GChangeEvent, GDOMElement, IForm, PartialForm} from './form';
 import type {GFormState, InitialState, RawData, RNGFormState, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
 
-const defaultFieldProps: { [key: string]: { value: string | number | boolean } } = {
+export const defaultFieldProps: { [key: string]: { value: string | number | boolean } } = {
     text: {value: ''},
     checkbox: {value: false},
     number: {value: 0}
@@ -19,181 +17,60 @@ const typeValueDict: { [key: string]: keyof HTMLFormElement | GDOMElement } = {
 
 const _generateIdUnsafe = () => (+new Date()).toString(36) + (1 - Math.random()).toString(36).substring(2, 16);
 
-export const _copyStateFields = (source: InitialState, destination: InitialState) => {
-    for (const key in destination.fields) {
-        const sourceField = source.fields[key];
-        const destField = destination.fields[key];
-
-        if (!sourceField || sourceField.type !== destField.type) continue;
-
-        destination.fields[key] = {...destField, ...sourceField};
-    }
-};
-
-export const _buildFormInitialValues = <T>(rows: ReactNode = []): InitialState<T> => {
-    const fields: { [key: string]: GInputInitialState } = {};
-
+export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputState<T> => {
     if (__DEBUG__) {
-        console.log('[buildFormInitialValues] -', 'building initial values for ', rows);
+        console.log('[_buildInputInitialValues] -', 'building initial values for ', input.formKey);
     }
 
-    const inputs = _findInputs(rows);
+    const {
+        required = false,
+        max,
+        maxLength,
+        min,
+        minLength,
+        step,
+        pattern,
+        type = "text",
+        defaultValue,
+        value,
+        checked,
+        defaultChecked,
+        formKey,
+        debounce,
+        validatorKey
+    } = input;
+    const defaultProps = defaultFieldProps[type] || defaultFieldProps.text;
+    const inputValue = value || defaultValue || checked || defaultChecked || defaultProps.value;
 
-    inputs.forEach(config => {
-        if (__DEBUG__) {
-            console.log('[buildFormInitialValues] -', 'building input', `(${config.formKey})`, config);
-        }
-
-        if (__DEV__ && fields[config.formKey]) {
-            console.warn(`DEV ONLY - [Duplicate Keys] - field with key '${config.formKey}' already defined.`);
-        }
-
-        const {
-            required = false,
-            max,
-            maxLength,
-            min,
-            minLength,
-            step,
-            pattern,
-            type = "text",
-            defaultValue,
-            value,
-            checked,
-            defaultChecked,
-            formKey,
-            debounce,
-            validatorKey
-        } = config;
-        const defaultProps = defaultFieldProps[type] || defaultFieldProps.text;
-        const inputValue = value || defaultValue || checked || defaultChecked || defaultProps.value;
-
-        fields[formKey] = {
-            formKey,
-            type,
-            required,
-            max,
-            maxLength,
-            min,
-            minLength,
-            step,
-            pattern,
-            value: inputValue,
-            validatorKey,
-            debounce,
-            dirty: false,
-            touched: false,
-            gid: _generateIdUnsafe(),
-        };
-    });
-
-    return {fields: fields as IForm<T>};
-};
-
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _buildFormTree = (
-    root?: ReactElement<any> | ReactElement<any>[] | undefined
-): FormNode[] => {
-    if (!root) return [];
-
-    if (Array.isArray(root)) {
-        return root.flatMap(element => _buildFormTree(element));
-    }
-
-    if (root.props?.formKey) {
-        if (__DEBUG__) {
-            console.log("[findInputs] - input config found", `(${root.props.formKey})`);
-        }
-        return [
-            {
-                type: "input",
-                formKey: root.props.formKey,
-            },
-        ];
-    }
-
-    // Group node
-    const childrenTree = _buildFormTree(root.props?.children);
-    return [
-        {
-            type: "group",
-            children: childrenTree,
+    return {
+        formKey,
+        type,
+        required,
+        max,
+        maxLength,
+        min,
+        minLength,
+        step,
+        pattern,
+        value: inputValue,
+        validatorKey,
+        debounce,
+        dirty: false,
+        touched: false,
+        gid: _generateIdUnsafe(),
+        error: false,
+        errorText: '',
+        //eslint-disable-next-line @typescript-eslint/no-unused-vars
+        dispatchChanges<C>(changes: Partial<GInputState | C>) {
         },
-    ];
-};
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const buildFormTreeWithFlatAndSignature = (
-    root?: ReactElement<any> | ReactElement<any>[] | undefined
-): FormTreeResult => {
-    const flat: (GInputProps & GInputStateMutable)[] = [];
-    let signature = '';
-
-    const walk = (node?: ReactElement<any> | ReactElement<any>[] | undefined): FormNode[] => {
-        if (!node) return [];
-
-        if (Array.isArray(node)) {
-            return node.flatMap(child => walk(child));
+        checkValidity(): boolean {
+            return false;
         }
-
-        if (node.props?.formKey) {
-            flat.push(node.props);
-            signature = `${signature}I(${node.props.formKey})`;
-            return [
-                {
-                    type: "input",
-                    formKey: node.props.formKey,
-                    props: node.props,
-                },
-            ];
-        }
-
-        signature = `${signature}G(`;
-        const childrenTree = walk(node.props?.children);
-        signature = `${signature})`;
-
-        return [
-            {
-                type: "group",
-                children: childrenTree,
-            },
-        ];
     };
-
-    const tree = walk(root);
-
-    return {tree, flat, signature};
 };
 
-const _findInputs = (root?: ReactNode, total: (GInputProps & GInputStateMutable)[] = []): (GInputProps & GInputStateMutable)[] => {
-    if (!root) return total;
-
-    Children.forEach(root, child => {
-        if (!isValidElement(child)) return;
-
-        if (child.props) {
-            const {formKey, children} = child.props as PropsWithChildren<GInputProps & GInputStateMutable>;
-
-            if (formKey) {
-                if (__DEBUG__) {
-                    console.log("[findInputs] - input config found", `(${formKey})`);
-                }
-                total.push(child.props as GInputProps & GInputStateMutable);
-            }
-
-            if (children) {
-                _findInputs(children, total);
-            }
-        }
-    });
-
-    return total;
-};
-
-export const _findValidityKey = (validity: Partial<ValidityState>, exclude: (keyof ValidityState)[] = []): keyof ValidityState | undefined => {
+export const _findValidityKey = (validity: Partial<ValidityState>): keyof ValidityState | undefined => {
     for (const key in validity) {
-        if (exclude.includes(key as keyof ValidityState)) continue;
         if (key !== 'valid' && validity[key as keyof ValidityState]) {
             if (__DEBUG__) {
                 console.log('[findValidityKey] -', 'found validity key:', key);

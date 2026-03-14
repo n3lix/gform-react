@@ -1,11 +1,11 @@
 import React, {createContext, useCallback, useContext, useMemo, useRef, useSyncExternalStore} from 'react';
-import type {FC, PropsWithChildren} from 'react';
+import type {FC, PropsWithChildren, RefObject} from 'react';
 
 import {useFormHandlers} from "./useFormHandlers";
 import type {InitialState, Store} from "./state";
 import type {GValidators} from "./validations";
-import type {GInputState} from './fields';
-import {_copyStateFields} from "./helpers";
+import type {GInputInitialState, GInputProps, GInputState, RNGInputProps} from './fields';
+import {_buildInputInitialValues} from "./helpers";
 
 const GFormContext = createContext<Store>({} as Store);
 
@@ -13,9 +13,16 @@ type GFormContextProviderProps = PropsWithChildren & {
     initialState: InitialState;
     validators?: GValidators;
     optimized?: boolean;
+    formRef?: RefObject<HTMLFormElement | null>;
 };
 
-export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, initialState, validators, optimized }) => {
+export const GFormContextProvider: FC<GFormContextProviderProps> = ({
+    children,
+    initialState,
+    validators,
+    optimized,
+    formRef
+}) => {
     const stateRef = useRef(initialState);
     const listeners = useRef<Set<() => void>>(null);
 
@@ -29,26 +36,80 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, 
         }
 
         stateRef.current = nextState;
-        listeners.current!.forEach((l) => l());
+        listeners.current!.forEach((listener) => listener());
     }, []);
 
     const handlers = useFormHandlers(() => stateRef.current, setState, validators, optimized);
 
+    const getInputElement = useCallback((formKey: string) => {
+        if (formRef && formRef.current) {
+            return formRef.current[formKey];
+        }
+    }, []);
+
+    const registerField = useCallback((config: GInputProps | RNGInputProps) => {
+        /* mutate stateRef without notifying listeners
+         it is safe because this field didn't exist (no component was subscribed to it) */
+        const prev = stateRef.current;
+
+        if (prev.fields[config.formKey]) {
+            if (__DEV__) {
+                console.warn(`DEV ONLY - [Duplicate Keys] - field with key '${config.formKey}' already defined.`);
+            }
+            return;
+        }
+
+        const inputState = _buildInputInitialValues(config as GInputInitialState);
+
+        stateRef.current = {
+            ...prev,
+            fields: {
+                ...prev.fields,
+                [config.formKey]: {
+                    ...inputState,
+                    dispatchChanges: (changes: Partial<GInputState>) =>
+                        handlers._dispatchChanges(changes, config.formKey)
+                }
+            }
+        };
+        // No listeners.current.forEach() here — the subscribing component
+        // will read the updated stateRef immediately via useSyncExternalStore
+    }, [handlers]);
+
+    const unregisterField = useCallback((formKey: string) => {
+        const prev = stateRef.current;
+        if (!prev.fields[formKey]) return;
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const {[formKey]: _, ...remainingFields} = prev.fields;
+
+        stateRef.current = {
+            ...prev,
+            fields: remainingFields
+        };
+
+        // Notify listeners so other components (e.g. submit button) re-render
+        // with the updated isValid/isInvalid state
+        listeners.current!.forEach(listener => listener());
+    }, []);
+
     const store = useMemo<Store>(() => {
         if (!listeners.current) {
             listeners.current = new Set();
+            stateRef.current = initialState;
+            for (const fieldKey in initialState.fields) {
+                initialState.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>) =>
+                    handlers._dispatchChanges(changes, fieldKey);
+            }
         } else {
             if (__DEBUG__) {
-                console.log(`[form-context] - form changed stated from`, stateRef.current, '\nto\n', initialState);
+                console.log(`[form-context] - form changed state from`, stateRef.current, '\nto\n', initialState);
             }
             listeners.current.clear();
-            _copyStateFields(stateRef.current, initialState);
-        }
-
-        stateRef.current = initialState;
-
-        for (const fieldKey in initialState.fields) {
-            initialState.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>) => handlers._dispatchChanges(changes, fieldKey);
+            for (const fieldKey in stateRef.current.fields) {
+                stateRef.current.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>) =>
+                    handlers._dispatchChanges(changes, fieldKey);
+            }
         }
 
         return {
@@ -58,7 +119,10 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, 
                 listeners.current!.add(listener);
                 return () => listeners.current!.delete(listener);
             },
-            handlers
+            handlers,
+            registerField,
+            unregisterField,
+            getInputElement
         };
     }, [initialState]);
 
@@ -67,7 +131,7 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({ children, 
 
 export const useFormStore = () => {
     const store = useContext(GFormContext);
-    if (!store.getState) throw new Error('useGFormStore must be used within `GForm` component');
+    if (!store.getState) throw new Error('useFormStore must be used within `GForm` component');
 
     return store;
 };
@@ -83,7 +147,7 @@ export const useFormSelector = <T extends any>(selector: (state: InitialState) =
 };
 
 export function createSelector<
-    State=InitialState,
+    State = InitialState,
     Selectors extends Array<(state: State) => any> = [],
     Result = any
 >(

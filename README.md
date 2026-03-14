@@ -9,38 +9,44 @@
 ## Features
 
 - **Lightweight**
-- **Tree‑shakeable**
-- **Minimal re-renders** — only updates fields that change
-- **Native HTML Constraint Validations**
-- **Custom Validations**
-- **Custom Async Validations**
-- **Supports Yup, Zod, and more**
-- **Dynamic forms** — add/remove fields on the fly
-- **Accessibility‑friendly**  
-  Automatically sets `aria-required` and `aria-invalid`
-- **React Native support**
-
+- **Tree‑shakable** — import only what you use to keep bundles small
+- **Minimal re-renders** — updates only the fields that actually change
+- **Native HTML constraint validation** — full support for `min`, `max`, `pattern`, `minLength`, `maxLength`, `required`, and more
+- **Custom Validations** – add custom validation with any rules
+- **Async Validations** — run asynchronous rules for server-side checks
+- **Supports Yup, Zod, and more** – use any validation library you like
+- **Deeply Nested Forms** — structure forms however you like, across any number of components
+- **Dynamic fields** — add or remove fields at runtime without losing state
+- **Native `<form>` actions** — fully supports browser‑level form submission, including action, method, and HTTP navigation, with no JavaScript required
+- **Next.js Server Actions support** — works seamlessly with Server Actions through standard `<form>` submissions, with no special adapters or client‑side wiring
+- **Accessibility‑friendly** — automatically manages `aria-required` and `aria-invalid`
+- **React Native support** — works seamlessly across web and mobile
+ 
 <br/>
 <div align="center">
-  <a href="https://bundlephobia.com/package/gform-react">
-    <img src="https://img.shields.io/bundlephobia/min/gform-react?label=minified%20size&color=darkergreen" alt="Minified size">
+  <a href="https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js">
+    <img src="http://img.badgesize.io/https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js?compression=gzip&style=for-the-badge" alt="Minified size">
   </a>
   
-  <a href="https://bundlephobia.com/package/gform-react">
-    <img src="https://img.shields.io/bundlephobia/minzip/gform-react?label=gzip%20size&color=darkergreen" alt="Gzip size">
-  </a>
-  
-  <img src="https://img.shields.io/npm/dm/gform-react" alt="npm downloads">
-  
-  <img src="https://img.shields.io/npm/dependency-version/gform-react/peer/react" alt="React peer dependency">
-  
-  <img src="https://img.shields.io/npm/dependency-version/gform-react/peer/react-dom" alt="React DOM peer dependency">
-  
+  <img src="https://img.shields.io/npm/dt/gform-react.svg?style=for-the-badge" alt="React DOM peer dependency">
+  <img src="https://img.shields.io/npm/dm/gform-react?style=for-the-badge" alt="npm downloads">
+</div>
+<div align="center">
+  <img src="https://img.shields.io/npm/dependency-version/gform-react/peer/react?style=for-the-badge" alt="React peer dependency">
+
+  <img src="https://img.shields.io/npm/dependency-version/gform-react/peer/react-dom?style=for-the-badge" alt="React DOM peer dependency">
+
   <a href="https://unpkg.com/gform-react@latest/LICENSE.md">
-    <img src="https://img.shields.io/npm/l/gform-react" alt="MIT License">
+    <img src="https://img.shields.io/npm/l/gform-react?style=for-the-badge" alt="MIT License">
   </a>
 </div>
 <br/>
+
+## Documentation
+
+Full documentation, examples, and API reference:
+
+https://gform-react.onrender.com
 
 ## QuickStart
 ```tsx
@@ -89,12 +95,6 @@ const App: FC = () => {
     );
 };
 ```
-
-## Documentation
-
-Full documentation, examples, and API reference:
-
-https://gform-react.onrender.com
 
 ## Installation
 

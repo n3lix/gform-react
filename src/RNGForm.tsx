@@ -1,7 +1,7 @@
 import {useMemo, useEffect, forwardRef} from "react";
 import type {ReactNode, FC, ReactElement, Ref, RefObject} from "react";
 
-import {_merge, _buildFormInitialValues, _buildRNFormState} from "./helpers";
+import {_merge, _buildRNFormState} from "./helpers";
 import {GFormContextProvider, useFormSelector, useFormStore} from "./form-context";
 import type {RNGFormState} from "./state";
 import type {GValidators} from "./validations";
@@ -96,13 +96,7 @@ export type RNGFormProps<T> = {
  */
 export const RNGForm = forwardRef<any, RNGFormProps<any>>(
     <T, >({children, validators, ...props}: RNGFormProps<T>, ref: React.Ref<any>) => {
-        const initialState = useMemo(() => {
-            return _buildFormInitialValues(
-                typeof children === 'function'
-                    ? children({} as RNGFormState<T>)
-                    : children
-            );
-        }, [children]);
+        const initialState = useMemo(() => ({ fields: {} }), []);
 
         return (
             <GFormContextProvider initialState={initialState} validators={validators}>
