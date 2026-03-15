@@ -1,3 +1,7 @@
+## 2.8.1
+* **Refined documentation** — `withTypeMismatchMessage` description updated to be clearer and more professional, providing better guidance on using `type` vs `pattern`/custom validators
+* **Improved Rollup configuration** — updated `GValidator` entry point, ensuring better consistency and access to related types in the ESM build
+
 ## 2.8.0
 * **Lazy field registration** — fields now register themselves into the form state on mount and unregister on unmount, replacing the previous static pre-scan of children
 * **Improved `touched` & `dirty` flag handling** — `touched` is now set immediately on the first change event; `dirty` is set when the value is updated, making form state more predictable
