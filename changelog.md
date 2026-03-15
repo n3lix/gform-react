@@ -10,9 +10,8 @@
 * **Improved dev warning for `typeMismatch`** — more specific warning messages depending on whether a validator is missing entirely or does not satisfy the native constraint
 
 ## 2.7.5
-* **Improved README layout** — logo and badges are now centered with proper `alt` text for accessibility; hero section restructured with a title and description
-* **Updated feature list wording** — "Tree‑Shakeable" → "Tree‑shakeable", "Native HTML5 Constraint Validations" → "Native HTML Constraint Validations", "Support Yup, Zod etc." → "Supports Yup, Zod, and more", "Dynamic forms — add/remove fields on the fly" → listed as a standalone bullet
-* **Cleaned up README separators** — removed redundant `---` horizontal rules between sections for a cleaner document structure
+* **Improved README layout** 
+* **Updated feature list wording**
 
 ## 2.7.3
 * **Expanded README** — added QuickStart code example, full API reference tables, and `GValidators` usage docs; badges are now linked and an npm downloads badge was added
