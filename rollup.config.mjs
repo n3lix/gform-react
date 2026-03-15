@@ -16,7 +16,7 @@ const env = isProd ? 'production' : 'development';
 const esmEntries = {
     GForm: "src/GForm.tsx",
     GInput: "src/fields/GInput.tsx",
-    GValidator: "src/validations/GValidator.ts",
+    GValidator: "src/validations/index.ts",
     useFormSelector: "src/form-context.tsx"
 };
 
