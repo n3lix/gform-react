@@ -1,3 +1,31 @@
+## 2.8.1
+* **Refined documentation** — `withTypeMismatchMessage` description updated to be clearer and more professional, providing better guidance on using `type` vs `pattern`/custom validators
+* **Improved Rollup configuration** — updated `GValidator` entry point, ensuring better consistency and access to related types in the ESM build
+
+## 2.8.0
+* **Lazy field registration** — fields now register themselves into the form state on mount and unregister on unmount, replacing the previous static pre-scan of children
+* **Improved `touched` & `dirty` flag handling** — `touched` is now set immediately on the first change event; `dirty` is set when the value is updated, making form state more predictable
+* **`number` input type** — inputs with `type="number"` now correctly default their value to `0` instead of an empty string
+* **Initial value validation** — inputs with an initial value now trigger validation immediately on mount via `_viHandler`
+* **Improved dev warning for `typeMismatch`** — more specific warning messages depending on whether a validator is missing entirely or does not satisfy the native constraint
+
+## 2.7.5
+* **Improved README layout** 
+* **Updated feature list wording**
+
+## 2.7.3
+* **Expanded README** — added QuickStart code example, full API reference tables, and `GValidators` usage docs; badges are now linked and an npm downloads badge was added
+* **Exported `GValidators` type** — `GValidators` is now re-exported from the package entry point (`src/index.ts`)
+* **Build improvements** — rollup babel config now explicitly sets `babelrc: false`, adds `@babel/preset-typescript` and `@babel/preset-react` presets, and strips comments from output
+
+## 2.7.1
+* **Added Jest test suite** — `GForm.test.tsx` and `GInput.test.tsx` added with `@testing-library/react`; jest and babel configs set up for TypeScript and React
+* **Refactored `RNGForm`** — extracted `_buildRNFormState` helper and simplified `RNGForm` internals; removed the `selectFirstInvalidField` selector; `onInit` and initial-value validation now use `getState()` directly
+* **Removed `loader` prop** — the `loader` prop has been removed from `GFormProps` and `GForm`
+* **Fixed `RNGInput` fetch deps** — removed intermediate `stableFetchDeps` memo; `fetchDeps` effect now depends directly on the selector result
+* **TypeScript improvements** — `GInputState` generics updated to `GInputState<any>` in handler signatures; `IForm` index signature simplified; `__debounce` timer type changed from `NodeJS.Timeout` to `number` for better browser compatibility
+* **Added `_buildRNFormState` helper** — React Native form state builder extracted to `helpers.ts`, reusing `_checkIfFormIsValid` and the same `dispatchChanges` API as the web version
+
 ## 2.6.0
 * Fixed critical bug where the form is reset entirely on every parent render
 

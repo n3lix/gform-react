@@ -113,13 +113,13 @@ export class GValidator<T = any> {
     }
 
     /**
-     * register a `typeMismatch` violation handler<br />
-     * if its possible use `pattern` attribute (and `withPatternMismatchMessage`) or `custom validation` instead.<br/>
-     * use the `type` attribute to set the input's keyboard (for example type `'tel'` will show on mobile phones only numpads)
-     * and then with `pattern` or `custom validation` you can validate it.<br/>
-     * the reason for that is `type` is not a solid validation and likely will be replaced anyway.<br />
-     * if `pattern` or `custom` are used, then `withTypeMismatchMessage` is ignored
-     * */
+     * register a `typeMismatch` violation handler (use this with `type` attributes like `email` or `url`)
+     * <br />
+     * Use the `type` attribute to set the appropriate virtual keyboard (e.g., `type="tel"` for a numeric pad on mobile).
+     * Since native browser validation for certain types can vary, consider using `pattern` or custom validators for
+     * consistent cross-browser behavior. Ensure your custom validation is compatible with the native one to avoid
+     * blocking form submission.
+     */
     withTypeMismatchMessage(message: string | GConstraintValidator): GValidator<T> {
         return this.__addConstraintValidationHandler('typeMismatch', message);
     }
