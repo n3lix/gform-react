@@ -30,8 +30,10 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
                  * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
                  * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
                  */
-                const {validityKey = 'custom'} = _checkInputManually(input);
-                element.setCustomValidity(validityKey); //reset any previous error (custom)
+                const {validityKey} = _checkInputManually(input);
+                if (validityKey) {
+                    element.setCustomValidity(validityKey); //reset any previous error (custom)
+                }
                 _dispatchChanges(input, input.formKey);
                 return;
             }
