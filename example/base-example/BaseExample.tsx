@@ -13,8 +13,15 @@ const Test = () => {
     return (<div>test!!!!!!!</div>);
 }
 
+const values = {
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'test@test.com',
+    phone: '1234567890',
+    city: 'New York'
+};
+
 const BaseExample = () => {
-    const [c, setC] = useState(0);
 
     const ref = useRef<HTMLFormElement>(null);
 
@@ -28,58 +35,39 @@ const BaseExample = () => {
     return (
         <Tabs headersContainer={<div/>}>
             <Tab index={0} header={<button>Email</button>}>
-                <GForm<SignUpForm> ref={ref} onInit={(state) => {
-                }} validators={validators}
+                <GForm<SignUpForm> ref={ref} validators={validators}
                                    onSubmit={(state, e) => {
                                        e.preventDefault();
                                        console.log(state);
                                    }}>
-                    {(state) => <>
-                        <GInput formKey={'email'}
-                                id="email"
-                                type="email"
-                                placeholder="Enter your email"
-                                required
-                                minLength={1}
-                                validatorKey={'email'}
-                                element={renderInput}
-                        />
+                    <GInput formKey={'firstName'}
+                            id="firstName"
+                            value={values.firstName}
+                            placeholder="Enter your firstName"
+                            minLength={2}
+                            required
+                            element={renderInput}
+                    />
 
-                        <GInput formKey={'city'}
-                                id="email2"
-                                type="text"
-                                required
-                                minLength={2}
-                                placeholder="repeat Enter your email"
-                                element={renderInput}
-                        />
+                    <GInput formKey={'lastName'}
+                            id="lastName"
+                            value={values.lastName}
+                            placeholder="Enter your lastName"
+                            required
+                            element={renderInput}
+                    />
 
-                        <GInput formKey={'checkbox'}
-                                id="checkbox"
-                                type="checkbox"
-                        />
+                    <GInput formKey={'email'}
+                            value={values.email}
+                            id="email"
+                            type="email"
+                            placeholder="Enter your email"
+                            required
+                            validatorKey={'email'}
+                            element={renderInput}
+                    />
 
-                        <button type={'button'} onClick={() => setC(p => p + 1)}>
-                            test
-                        </button>
-
-                        <Test/>
-
-                        {
-                            c > 0 && c < 2 && <div><GInput formKey={'test'}
-                                             id="test"
-                                             type="text"
-                                             required
-                                             minLength={2}
-                                             placeholder="repeat Enter your email"
-                                             element={renderInput}
-                            /></div>
-                        }
-
-                        <button type="submit" disabled={state.isInvalid}>
-                            Send Verification Code
-                        </button>
-                    </>}
+                    <button>test</button>
 
                 </GForm>
             </Tab>
