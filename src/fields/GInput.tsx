@@ -6,6 +6,12 @@ import {useFormSelector, useFormStore} from "../form-context";
 import {makeSelectFields} from "../selectors";
 import {type GDOMElement} from "../form";
 
+// Stable no-op handler. In optimized mode the input has no real onChange (change is delegated
+// to the <form>), but a controlled input still needs *some* onChange or React warns
+// ("You provided a `value` prop ... without an `onChange` handler"). A shared no-op silences
+// that warning with zero per-input closure cost; the form's delegated onChange does the work.
+const _noop = () => { /* delegated to the form */ };
+
 const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
     const store = useFormStore();
 
@@ -101,6 +107,10 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
                 } : (e, unknown?: { value: unknown } | string | number) => {
                     store.handlers._updateInputHandler(inputState, e, unknown);
                 };
+        } else if (!isFile) {
+            // optimized mode: change is delegated to the <form>; give controlled inputs a
+            // no-op onChange so React doesn't warn. (file inputs are uncontrolled — skip.)
+            _props.onChange = _noop;
         }
 
         if (element) {

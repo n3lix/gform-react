@@ -1,7 +1,4 @@
-import {createSelector} from "./form-context";
 import type {InitialState} from "./state";
-
-const selectFields = [(state: InitialState) => state.fields];
 
 /**
  * `JSON.stringify` can't represent a `File` (it serializes to `"{}"`, so different files
@@ -17,11 +14,13 @@ const _depsReplacer = (_key: string, value: unknown) => {
     return value;
 };
 
+/**
+ * Build a selector that produces a string signature of the given field values, used as the
+ * `fetchDeps` change key. Returns a plain function (no memoization): it's recreated per render
+ * by the caller, so a cache wouldn't survive, and the combiner is cheap.
+ */
 export const makeSelectFields = (keys: string[] = []) =>
-    createSelector(
-        selectFields,
-        (fields) => {
-            const selected = keys.map((key) => JSON.stringify(fields[key]?.value, _depsReplacer)).join(', ');
-            return selected.length ? selected : null;
-        }
-    );
+    (state: InitialState): string | null => {
+        const selected = keys.map((key) => JSON.stringify(state.fields[key]?.value, _depsReplacer)).join(', ');
+        return selected.length ? selected : null;
+    };

@@ -159,30 +159,3 @@ export const useFormSelector = <T extends any>(selector: (state: InitialState) =
         () => selector(store.getState()) // for SSR
     );
 };
-
-export function createSelector<
-    State = InitialState,
-    Selectors extends Array<(state: State) => any> = [],
-    Result = any
->(
-    selectors: Selectors,
-    combiner: (...args: {
-        [K in keyof Selectors]: Selectors[K] extends (state: State) => infer R ? R : never;
-    }) => Result
-): (state: State) => Result {
-    let lastArgs: any[] = [];
-    let lastResult: Result;
-
-    return (state: State): Result => {
-        const args = selectors.map(fn => fn(state));
-        if (
-            lastArgs.length === args.length &&
-            args.every((val, i) => val === lastArgs[i])
-        ) {
-            return lastResult;
-        }
-        lastArgs = args;
-        lastResult = combiner(...args as any);
-        return lastResult;
-    };
-}
