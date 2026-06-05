@@ -54,5 +54,5 @@ export type Store = {
     handlers: ReturnType<typeof useFormHandlers>;
     registerField: (config: GInputProps | RNGInputProps) => void;
     unregisterField: (formKey: string) => void;
-    getInputElement: (formKey: string) => GDOMElement;
+    getInputElement: (formKey: string) => GDOMElement | undefined;
 }

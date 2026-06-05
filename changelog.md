@@ -2,6 +2,7 @@
 * **File input support (`type="file"`)** — file inputs now store the real `File` object instead of the browser's `C:\fakepath\...` string. The stored value is `File | null` for a single file and `File[]` when the `multiple` attribute is set
 * **File inputs are uncontrolled** — `GInput` no longer forces a `value`/`checked` prop on `type="file"`, complying with the DOM constraint that file inputs cannot be controlled; the selected `FileList` is owned by the DOM and reflected into form state on change
 * **`required` validation for files** — empty required file inputs (including empty `File[]` for `multiple`) are correctly reported as `valueMissing`
+* **Programmatic file values** — setting a file field's value via `dispatchChanges` (e.g. drag-and-drop) syncs the `File`/`File[]` into the native input's `FileList` using `DataTransfer`, so the picker, programmatic updates, reset, and `toFormData()` stay consistent (the `value` attribute can't be used — the DOM rejects non-empty file values)
 * **Types** — the `file` variant of `GInputProps` is now typed `value?: File | File[] | null` with an optional `multiple` flag and a `File`-aware `element` render handler
 * **Exported public types** — `GFormProps`, `GFormState`, `RNGFormState`, `GInputProps`, `GInputState`, and `GElementProps` are now re-exported from the package entry point
 

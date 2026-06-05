@@ -55,14 +55,14 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
     const _element = useMemo(() => {
         let value: any, checked;
 
-        // file inputs must stay uncontrolled: React forbids a non-empty `value`
-        // on <input type="file">, and the DOM owns the selected FileList.
+        // file inputs stay uncontrolled (value left undefined): the DOM throws
+        // InvalidStateError for non-empty file values. The selected File(s) are written
+        // into the native FileList via a post-commit effect, not through `value`.
         const isFile = type === 'file';
 
         if (type === 'checkbox') checked = inputState.value || false;
         else if (type === 'number') value = inputState.value || 0;
         else if (!isFile) value = inputState.value || '';
-
         const _props = {
             ...rest,
             type,
@@ -124,6 +124,37 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
             });
         }
     }, [_fetchDeps]);
+
+    /**
+     * File inputs cannot be controlled through the `value` attribute — the DOM throws
+     * `InvalidStateError` for any non-empty file value, and React maps a `files` prop to a
+     * (useless) string attribute rather than the `FileList` property. So the field value
+     * (a `File` / `File[]`) is the source of truth and is written into the native `FileList`
+     * here, post-commit, via `DataTransfer`. This keeps programmatic updates (e.g. drag-and-drop
+     * through `dispatchChanges`), the native picker, reset, and `toFormData()` consistent.
+     */
+    useEffect(() => {
+        if (type !== 'file' || typeof DataTransfer === 'undefined') return;
+
+        const el = store.getInputElement(formKey) as HTMLInputElement | undefined;
+        if (!el) return;
+
+        const next: File[] = inputState.value == null
+            ? []
+            : Array.isArray(inputState.value)
+                ? inputState.value
+                : [inputState.value as File];
+        const current = el.files ? Array.from(el.files) : [];
+
+        // skip when already in sync — avoids clobbering the native picker selection
+        // and redundant FileList writes on unrelated re-renders
+        const inSync = current.length === next.length && next.every((file, i) => file === current[i]);
+        if (inSync) return;
+
+        const dataTransfer = new DataTransfer();
+        next.forEach((file) => dataTransfer.items.add(file));
+        el.files = dataTransfer.files;
+    }, [inputState.value, type]);
 
     return _element;
 });
