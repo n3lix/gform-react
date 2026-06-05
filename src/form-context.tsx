@@ -5,6 +5,7 @@ import {useFormHandlers} from "./useFormHandlers";
 import type {InitialState, Store} from "./state";
 import type {GValidators} from "./validations";
 import type {GInputInitialState, GInputProps, GInputState, RNGInputProps} from './fields';
+import type {GDOMElement} from './form';
 import {_buildInputInitialValues} from "./helpers";
 
 const GFormContext = createContext<Store>({} as Store);
@@ -42,9 +43,11 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
     const handlers = useFormHandlers(() => stateRef.current, setState, validators, optimized);
 
     const getInputElement = useCallback((formKey: string) => {
-        if (formRef && formRef.current) {
-            return formRef.current[formKey];
-        }
+        if (!formRef || !formRef.current) return;
+        // Use `elements.namedItem` instead of `formRef.current[formKey]`: the latter is
+        // shadowed by HTMLFormElement's own properties, so a field named `submit`, `length`,
+        // `action`, `method`, etc. would resolve to the wrong thing (e.g. the submit() method).
+        return (formRef.current.elements.namedItem(formKey) ?? undefined) as unknown as GDOMElement;
     }, []);
 
     const registerField = useCallback((config: GInputProps | RNGInputProps) => {

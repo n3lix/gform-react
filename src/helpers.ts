@@ -140,7 +140,7 @@ export const _toRawData = <T>(fields: IForm<T> & {
     if (transform) {
         for (const key in transform) {
             const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-            data[key] = set(fields[key]?.value || fields[key]);
+            data[key] = set(fields[key]?.value);
         }
     }
 
