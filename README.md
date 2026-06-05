@@ -20,6 +20,7 @@
 - **Native `<form>` actions** — fully supports browser‑level form submission, including action, method, and HTTP navigation, with no JavaScript required
 - **Next.js Server Actions support** — works seamlessly with Server Actions through standard `<form>` submissions, with no special adapters or client‑side wiring
 - **Accessibility‑friendly** — automatically manages `aria-required` and `aria-invalid`
+- **File inputs** — `type="file"` stores the real `File` object (or `File[]` with `multiple`), not the `C:\fakepath\...` string
 - **React Native support** — works seamlessly across web and mobile
  
 <br/>
@@ -95,6 +96,61 @@ const App: FC = () => {
     );
 };
 ```
+
+## File inputs
+
+`GInput` with `type="file"` stores the selected **`File` object** in form state — not the browser's `C:\fakepath\...` string. File inputs are intentionally **uncontrolled** (the DOM owns the `FileList`), so you don't pass a `value`; the current selection is reflected into state on change.
+
+- Single file → `state.<key>.value` is `File | null`
+- With `multiple` → `state.<key>.value` is `File[]`
+
+```tsx
+import {GForm, GInput, GValidator, type GValidators} from "gform-react";
+
+interface CvForm {
+    cv: File | null;
+}
+
+const validators: GValidators<CvForm> = {
+    cv: new GValidator().withRequiredMessage('please attach your CV'),
+};
+
+const UploadForm: FC = () => {
+    return (
+        <GForm<CvForm>
+            validators={validators}
+            onSubmit={(formState, e) => {
+                e.preventDefault();
+                const file = formState.cv.value;        // the real File object
+                if (!file) return;
+
+                const data = new FormData();
+                data.append('cv', file);
+                // or simply: const data = formState.toFormData();
+                // upload `data` via your service…
+            }}
+        >
+            <GInput
+                formKey="cv"
+                type="file"
+                required
+                accept=".pdf,.doc,.docx"
+                element={(input, props) => (
+                    <div>
+                        <input {...props} />
+                        {/* show the chosen file name from state */}
+                        {input.value && <small>{(input.value as File).name}</small>}
+                        {input.error && <small className="p-error">{input.errorText}</small>}
+                    </div>
+                )}
+            />
+            <button>Upload</button>
+        </GForm>
+    );
+};
+```
+
+> For multiple files, add the native `multiple` attribute; `input.value` becomes a `File[]`. `formState.toFormData()` includes file fields automatically via the underlying `<form>`.
 
 ## Installation
 

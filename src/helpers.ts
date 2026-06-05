@@ -4,10 +4,11 @@ import type {GFormState, InitialState, RawData, RNGFormState, ToFormDataOptions,
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
 
-export const defaultFieldProps: { [key: string]: { value: string | number | boolean } } = {
+export const defaultFieldProps: { [key: string]: { value: string | number | boolean | File | File[] | null } } = {
     text: {value: ''},
     checkbox: {value: false},
-    number: {value: 0}
+    number: {value: 0},
+    file: {value: null}
 };
 
 const typeValueDict: { [key: string]: keyof HTMLFormElement | GDOMElement } = {
@@ -214,8 +215,13 @@ export const _debounce = __debounce.bind({});
 
 export const _extractValue = <T>(e?: GChangeEvent<GDOMElement | HTMLFormElement>, unknown?: {
     value: T
-} | string | number): undefined | string | number | boolean | T => {
+} | string | number): undefined | string | number | boolean | File | File[] | null | T => {
     if (e?.target) {
+        if (e.target.type === 'file') {
+            const {files, multiple} = e.target as HTMLInputElement;
+            if (!files) return multiple ? [] : null;
+            return multiple ? Array.from(files) : (files[0] ?? null);
+        }
         if (Object.hasOwn(typeValueDict, e.target.type)) return e.target[typeValueDict[e.target.type] as 'value'];
         return e.target.value;
     }

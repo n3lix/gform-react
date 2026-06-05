@@ -1,3 +1,10 @@
+## 2.9.0
+* **File input support (`type="file"`)** — file inputs now store the real `File` object instead of the browser's `C:\fakepath\...` string. The stored value is `File | null` for a single file and `File[]` when the `multiple` attribute is set
+* **File inputs are uncontrolled** — `GInput` no longer forces a `value`/`checked` prop on `type="file"`, complying with the DOM constraint that file inputs cannot be controlled; the selected `FileList` is owned by the DOM and reflected into form state on change
+* **`required` validation for files** — empty required file inputs (including empty `File[]` for `multiple`) are correctly reported as `valueMissing`
+* **Types** — the `file` variant of `GInputProps` is now typed `value?: File | File[] | null` with an optional `multiple` flag and a `File`-aware `element` render handler
+* **Exported public types** — `GFormProps`, `GFormState`, `RNGFormState`, `GInputProps`, `GInputState`, and `GElementProps` are now re-exported from the package entry point
+
 ## 2.8.1
 * **Refined documentation** — `withTypeMismatchMessage` description updated to be clearer and more professional, providing better guidance on using `type` vs `pattern`/custom validators
 * **Improved Rollup configuration** — updated `GValidator` entry point, ensuring better consistency and access to related types in the ESM build

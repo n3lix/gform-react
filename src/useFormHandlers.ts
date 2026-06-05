@@ -62,7 +62,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
 
     const _checkInputManually = (input: GInputState<any>) => {
         let validityKey = _findValidityKey({
-            valueMissing: input.required && !input.value || false,
+            valueMissing: input.required && (!input.value || (Array.isArray(input.value) && !input.value.length)) || false,
             typeMismatch: _checkTypeMismatch(input),
             tooShort: input.minLength && input.value.toString().length < input.minLength || false,
             tooLong: input.maxLength && input.value.toString().length > input.maxLength || false,
@@ -111,11 +111,11 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             if (validityKey && !inputValidator?.hasConstraint(validityKey)) {
                 if (validityKey === 'typeMismatch') {
                     if (!inputValidator?.handlers.length)
-                        console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' or '${handlersMap[validityMap.patternMismatch]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\nif you added on of these validators then the input is still suffering from '${validityKey}' violation.\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props.\n`);
+                        console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' or '${handlersMap[validityMap.patternMismatch]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\nif you added one of these validators then the input is still suffering from '${validityKey}' violation.\n`);
                     else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing or not satisfies the native constraint.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\n\nif you already have a Custom Validation then the input is still not satisfies the native type pattern.\neither enforce it or remove the constraint '${validityMap[validityKey]}' from the input props`);
                 }
-                else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withPatternMismatchMessage('pattern mismatch'),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
-                console.warn(`form submition is prevented due to violation(s) of input '${input.formKey}': violation '${validityKey}' caused by '${validityMap[validityKey]}' property (<Ginput ${validityMap[validityKey]}={...} />)`);
+                else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().${handlersMap[validityMap[validityKey]]}(...),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
+                console.warn(`form submition is prevented due to violation(s) of input '${input.formKey}': violation '${validityKey}' caused by '${validityMap[validityKey]}' property.\n(<Ginput formKey={'${input.formKey}'} ${validityMap[validityKey]}={...} />)`);
             }
         }
 

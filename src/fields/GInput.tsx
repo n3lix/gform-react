@@ -55,16 +55,20 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
     const _element = useMemo(() => {
         let value: any, checked;
 
+        // file inputs must stay uncontrolled: React forbids a non-empty `value`
+        // on <input type="file">, and the DOM owns the selected FileList.
+        const isFile = type === 'file';
+
         if (type === 'checkbox') checked = inputState.value || false;
         else if (type === 'number') value = inputState.value || 0;
-        else value = inputState.value || '';
+        else if (!isFile) value = inputState.value || '';
 
         const _props = {
             ...rest,
             type,
             name: formKey,
-            value,
-            checked,
+            value: isFile ? undefined : value,
+            checked: isFile ? undefined : checked,
             ref,
             'aria-invalid': inputState.error,
             'aria-required': inputState.required,
