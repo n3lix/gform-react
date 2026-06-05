@@ -198,20 +198,28 @@ export function _toURLSearchParams<T>(this: GFormState<T>, options?: ToURLSearch
     return new URLSearchParams(data); // this is ok because URLSearchParams will stringify the values (boolean/number)
 }
 
-function __debounce(this: { [key: string]: { timerId: number } }, timeout: number, id: string): Promise<void> {
-    return new Promise(resolve => {
-        if (this[id]?.timerId)
-            clearTimeout(this[id].timerId);
+const _debounceTimers: { [key: string]: ReturnType<typeof setTimeout> } = {};
 
-        const timerId = setTimeout(() => resolve(), timeout);
+export const _debounce = (timeout: number, id: string): Promise<void> =>
+    new Promise(resolve => {
+        if (_debounceTimers[id]) clearTimeout(_debounceTimers[id]);
 
-        if (this[id]) {
-            this[id].timerId = timerId;
-        } else this[id] = {timerId};
+        _debounceTimers[id] = setTimeout(() => {
+            // drop the entry once it fires so the timer map doesn't grow unbounded
+            delete _debounceTimers[id];
+            resolve();
+        }, timeout);
     });
-}
 
-export const _debounce = __debounce.bind({});
+/** cancel any pending debounce(s) by id and drop their entries (called on field unmount) */
+export const _clearDebounce = (...ids: string[]): void => {
+    for (const id of ids) {
+        if (_debounceTimers[id]) {
+            clearTimeout(_debounceTimers[id]);
+            delete _debounceTimers[id];
+        }
+    }
+};
 
 export const _extractValue = <T>(e?: GChangeEvent<GDOMElement | HTMLFormElement>, unknown?: {
     value: T

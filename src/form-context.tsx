@@ -6,7 +6,7 @@ import type {InitialState, Store} from "./state";
 import type {GValidators} from "./validations";
 import type {GInputInitialState, GInputProps, GInputState, RNGInputProps} from './fields';
 import type {GDOMElement} from './form';
-import {_buildInputInitialValues} from "./helpers";
+import {_buildInputInitialValues, _clearDebounce} from "./helpers";
 
 const GFormContext = createContext<Store>({} as Store);
 
@@ -83,7 +83,12 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
 
     const unregisterField = useCallback((formKey: string) => {
         const prev = stateRef.current;
-        if (!prev.fields[formKey]) return;
+        const removed = prev.fields[formKey];
+        if (!removed) return;
+
+        // cancel & drop any pending debounce timers for this field so the timer map
+        // doesn't grow unbounded (and to avoid a fetch firing after unmount)
+        _clearDebounce(`${removed.gid}-fetch`, `${removed.gid}-async`);
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const {[formKey]: _, ...remainingFields} = prev.fields;
