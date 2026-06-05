@@ -33,7 +33,7 @@ export type GInputState<T = string | number | boolean> = GInputInitialState & {
     error: boolean;
     errorText: string;
     checkValidity(): boolean;
-    dispatchChanges<C>(changes: Partial<GInputState | C>): void;
+    dispatchChanges<C>(changes: Partial<GInputState | C>, options?: {validate?: boolean}): void;
     debounce?: number;
 };
 

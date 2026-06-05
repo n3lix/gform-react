@@ -70,8 +70,10 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
                 ...prev.fields,
                 [config.formKey]: {
                     ...inputState,
-                    dispatchChanges: (changes: Partial<GInputState>) =>
-                        handlers._dispatchChanges(changes, config.formKey)
+                    dispatchChanges: (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
+                        options?.validate
+                            ? handlers._dispatchAndValidate(changes, config.formKey)
+                            : handlers._dispatchChanges(changes, config.formKey)
                 }
             }
         };
@@ -101,8 +103,10 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
             listeners.current = new Set();
             stateRef.current = initialState;
             for (const fieldKey in initialState.fields) {
-                initialState.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>) =>
-                    handlers._dispatchChanges(changes, fieldKey);
+                initialState.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
+                    options?.validate
+                        ? handlers._dispatchAndValidate(changes, fieldKey)
+                        : handlers._dispatchChanges(changes, fieldKey);
             }
         } else {
             if (__DEBUG__) {
@@ -110,8 +114,10 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
             }
             listeners.current.clear();
             for (const fieldKey in stateRef.current.fields) {
-                stateRef.current.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>) =>
-                    handlers._dispatchChanges(changes, fieldKey);
+                stateRef.current.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
+                    options?.validate
+                        ? handlers._dispatchAndValidate(changes, fieldKey)
+                        : handlers._dispatchChanges(changes, fieldKey);
             }
         }
 

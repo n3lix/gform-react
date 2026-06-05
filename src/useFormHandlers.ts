@@ -132,6 +132,17 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
     });
 
     /**
+     * Merge `changes` into a field, then re-run validation against the updated value.
+     * Validation uses the manual (state-based) path — important for programmatic updates
+     * (e.g. a drag-and-dropped file) where the DOM may not yet reflect the new value.
+     */
+    const _dispatchAndValidate = (changes: Partial<GInputState<any>>, key: string) => {
+        _dispatchChanges(changes, key);
+        const input = getState().fields[key];
+        if (input) _viHandler(input);
+    };
+
+    /**
      * @internal
      */
     const __validateInput = (input: GInputState, inputValidator: GInputValidator<any>, validityKey?: keyof ValidityState, setValidity?: (e: string) => void): void => {
@@ -198,5 +209,5 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
     };
 
-    return {_updateInputHandler, _viHandler, _dispatchChanges, optimized, _createInputChecker: _checkInputManually};
+    return {_updateInputHandler, _viHandler, _dispatchChanges, _dispatchAndValidate, optimized, _createInputChecker: _checkInputManually};
 };
