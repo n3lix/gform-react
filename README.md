@@ -121,12 +121,7 @@ const UploadForm: FC = () => {
             validators={validators}
             onSubmit={(formState, e) => {
                 e.preventDefault();
-                const file = formState.cv.value;        // the real File object
-                if (!file) return;
-
-                const data = new FormData();
-                data.append('cv', file);
-                // or simply: const data = formState.toFormData();
+                const data = formState.toFormData();
                 // upload `data` via your service…
             }}
         >
