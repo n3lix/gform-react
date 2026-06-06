@@ -5,6 +5,12 @@
 * **Programmatic file values** — setting a file field's value via `dispatchChanges` (e.g. drag-and-drop) syncs the `File`/`File[]` into the native input's `FileList` using `DataTransfer`, so the picker, programmatic updates, reset, and `toFormData()` stay consistent (the `value` attribute can't be used — the DOM rejects non-empty file values)
 * **Types** — the `file` variant of `GInputProps` is now typed `value?: File | File[] | null` with an optional `multiple` flag and a `File`-aware `element` render handler
 * **Exported public types** — `GFormProps`, `GFormState`, `RNGFormState`, `GInputProps`, `GInputState`, and `GElementProps` are now re-exported from the package entry point
+* **`dispatchChanges` validation option** — field- and form-level `dispatchChanges` now accept `{ validate: true }` to re-run validation against the updated value (state-based), refreshing `error`/`isValid` for programmatic updates (e.g. drag-and-drop). The default is unchanged (no validation), so manually-set `error`/`errorText` are preserved
+* **`fetchDeps` change detection for non-serializable values** — the dependency signature now encodes `File` values by content descriptor and `bigint` by value. Previously `JSON.stringify` collapsed every `File` to `"{}"` (so a changed file never re-triggered `fetch`) and threw on `bigint`. Dependency keys that aren't registered yet are now also guarded
+* **Fixed `toRawData` transform** — the field's `value` is passed to `transform`; previously a falsy value (`0`/`''`/`false`) caused the entire field-state object to be passed instead
+* **Debounce timer cleanup** — pending `fetch`/async-validation timers are cancelled and removed when a field unmounts, and dropped automatically once they fire; this prevents the internal timer map from growing unbounded and stops a `fetch` from firing after unmount
+* **Optimized mode no longer warns** — optimized inputs attach a shared no-op `onChange`, so React no longer warns about a controlled `value` without an `onChange` handler; change/blur/invalid remain delegated to the `<form>`
+* **Expanded test coverage** — added `GValidator` (unit + integration), `fetchDeps` `File` detection, field- and form-level `dispatchChanges`, debounce cleanup, and a broader `GForm` suite (submission gating, serialization, `onInit`, `stateRef`, validity, dynamic fields, optimized mode)
 
 ## 2.8.1
 * **Refined documentation** — `withTypeMismatchMessage` description updated to be clearer and more professional, providing better guidance on using `type` vs `pattern`/custom validators
