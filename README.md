@@ -73,7 +73,8 @@ const App: FC = () => {
                                validators={validators}
                                onSubmit={(formState, e) => { //can be used with native `action` or with Next.js `server actions`
                                     e.preventDefault();
-                                    console.log(formState);
+                                    const data = formState.toRawData(); // key-value pairs of the form input values
+                                    console.log(data);
                                }}>
                 <GInput formKey='username'
                         required
