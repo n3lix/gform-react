@@ -33,7 +33,7 @@ export type GInputState<T = string | number | boolean> = GInputInitialState & {
     error: boolean;
     errorText: string;
     checkValidity(): boolean;
-    dispatchChanges<C>(changes: Partial<GInputState | C>): void;
+    dispatchChanges<C>(changes: Partial<GInputState | C>, options?: {validate?: boolean}): void;
     debounce?: number;
 };
 
@@ -147,7 +147,14 @@ export type GInputProps = BaseGenericFieldProps & Omit<InputHTMLAttributes<HTMLI
     |
     {
         type: 'file';
-        defaultValue?: string;
-        value?: string;
-        element?: GInputElementHandler<string>;
+        /** allow selecting more than one file; changes the stored value to `File[]` */
+        multiple?: boolean;
+        /**
+         * the selected file(s).
+         * `File | null` for a single file, `File[]` when `multiple` is set.
+         * Note: file inputs are uncontrolled — this reflects the current selection,
+         * it cannot be used to programmatically set the input's files.
+         */
+        value?: File | File[] | null;
+        element?: GInputElementHandler<File | File[] | null>;
     });

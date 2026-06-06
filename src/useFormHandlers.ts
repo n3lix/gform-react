@@ -1,4 +1,4 @@
-import {_checkResult, _checkTypeMismatch, _debounce, _extractValue, _findValidityKey} from "./helpers";
+import {_checkResult, _debounce, _extractValue, _findValidityKey, _manualValidityKey} from "./helpers";
 import {type GInputValidator, type GValidators} from "./validations";
 import type {GInputState} from "./fields";
 import type {GChangeEvent, GDOMElement, GFocusEvent, GFormEvent, GInvalidEvent} from "./form";
@@ -61,15 +61,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
     };
 
     const _checkInputManually = (input: GInputState<any>) => {
-        let validityKey = _findValidityKey({
-            valueMissing: input.required && !input.value || false,
-            typeMismatch: _checkTypeMismatch(input),
-            tooShort: input.minLength && input.value.toString().length < input.minLength || false,
-            tooLong: input.maxLength && input.value.toString().length > input.maxLength || false,
-            patternMismatch: input.pattern && _checkResult(input.pattern, input.value) || false,
-            rangeUnderflow: input.min && Number(input.value) < Number(input.min) || false,
-            rangeOverflow: input.max && Number(input.value) > Number(input.max) || false
-        });
+        let validityKey = _manualValidityKey(input);
 
         if (!validityKey && input.error) {
             validityKey = 'customError';
@@ -79,6 +71,26 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             isValid: !input.error,
             validityKey,
         };
+    };
+
+    /**
+     * Run ONLY the constraint validators (required/minLength/pattern/type/min/max — all
+     * single-field) and bake the result into `error`/`errorText`. Pure: no dispatch, no
+     * `touched`, and no custom/async handlers (which may read other fields and shouldn't run
+     * during render). Called at registration so constraint errors on initial values appear on
+     * the first render without a follow-up re-render; custom/async still run in the mount effect.
+     */
+    const _checkConstraints = (input: GInputState<any>): void => {
+        const validityKey = _manualValidityKey(input);
+        if (!validityKey) return;
+
+        const inputValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        if (!inputValidator) return;
+
+        for (const index in inputValidator.constraintHandlers) {
+            input.error = _checkResult(inputValidator.constraintHandlers[index](input, validityKey), input.value);
+            if (input.error) return;
+        }
     };
 
     /**
@@ -111,11 +123,11 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             if (validityKey && !inputValidator?.hasConstraint(validityKey)) {
                 if (validityKey === 'typeMismatch') {
                     if (!inputValidator?.handlers.length)
-                        console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' or '${handlersMap[validityMap.patternMismatch]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\nif you added on of these validators then the input is still suffering from '${validityKey}' violation.\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props.\n`);
+                        console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' or '${handlersMap[validityMap.patternMismatch]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\nif you added one of these validators then the input is still suffering from '${validityKey}' violation.\n`);
                     else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing or not satisfies the native constraint.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\n\nif you already have a Custom Validation then the input is still not satisfies the native type pattern.\neither enforce it or remove the constraint '${validityMap[validityKey]}' from the input props`);
                 }
-                else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withPatternMismatchMessage('pattern mismatch'),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
-                console.warn(`form submition is prevented due to violation(s) of input '${input.formKey}': violation '${validityKey}' caused by '${validityMap[validityKey]}' property (<Ginput ${validityMap[validityKey]}={...} />)`);
+                else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().${handlersMap[validityMap[validityKey]]}(...),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
+                console.warn(`form submition is prevented due to violation(s) of input '${input.formKey}': violation '${validityKey}' caused by '${validityMap[validityKey]}' property.\n(<Ginput formKey={'${input.formKey}'} ${validityMap[validityKey]}={...} />)`);
             }
         }
 
@@ -130,6 +142,42 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
         return {...prev, ...changes};
     });
+
+    /**
+     * Merge `changes` into a field, then re-run validation against the updated value.
+     * Validation uses the manual (state-based) path — important for programmatic updates
+     * (e.g. a drag-and-dropped file) where the DOM may not yet reflect the new value.
+     */
+    const _dispatchAndValidate = (changes: Partial<GInputState<any>>, key: string) => {
+        _dispatchChanges(changes, key);
+        const input = getState().fields[key];
+        if (input) _viHandler(input);
+    };
+
+    /**
+     * Validate a field that mounts with a value (called from the field's mount effect).
+     * Constraint errors were already baked at registration; this runs the full check
+     * (custom/async, with the complete field set) and dispatches ONLY when the result changes —
+     * so a valid/constraint-only initial value doesn't trigger a re-render. No value change here,
+     * so it's safe to skip the dispatch (unlike `_viHandler`, which also propagates value edits).
+     *
+     * `element` (when present) has its native validity synced via `setCustomValidity`, so the
+     * browser blocks submitting an invalid initial value. This matters because the browser
+     * doesn't natively flag initial values (e.g. a value shorter than `minLength` is only
+     * `tooShort` once the user edits it) — without it the form would submit/refresh.
+     */
+    const _validateInitialField = (input: GInputState<any>, key: string, element?: GDOMElement): void => {
+        const before = {error: input.error, errorText: input.errorText};
+        _checkInputManually(input);
+
+        if (element) {
+            element.setCustomValidity(input.error ? (input.errorText || 'invalid') : '');
+        }
+
+        if (input.error !== before.error || input.errorText !== before.errorText) {
+            _dispatchChanges(input, key);
+        }
+    };
 
     /**
      * @internal
@@ -198,5 +246,5 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
     };
 
-    return {_updateInputHandler, _viHandler, _dispatchChanges, optimized, _createInputChecker: _checkInputManually};
+    return {_updateInputHandler, _viHandler, _dispatchChanges, _dispatchAndValidate, _checkConstraints, _validateInitialField, optimized, _createInputChecker: _checkInputManually};
 };

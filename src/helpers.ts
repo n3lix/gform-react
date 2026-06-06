@@ -4,10 +4,11 @@ import type {GFormState, InitialState, RawData, RNGFormState, ToFormDataOptions,
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
 
-export const defaultFieldProps: { [key: string]: { value: string | number | boolean } } = {
+export const defaultFieldProps: { [key: string]: { value: string | number | boolean | File | File[] | null } } = {
     text: {value: ''},
     checkbox: {value: false},
-    number: {value: 0}
+    number: {value: 0},
+    file: {value: null}
 };
 
 const typeValueDict: { [key: string]: keyof HTMLFormElement | GDOMElement } = {
@@ -139,7 +140,7 @@ export const _toRawData = <T>(fields: IForm<T> & {
     if (transform) {
         for (const key in transform) {
             const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-            data[key] = set(fields[key]?.value || fields[key]);
+            data[key] = set(fields[key]?.value);
         }
     }
 
@@ -197,25 +198,38 @@ export function _toURLSearchParams<T>(this: GFormState<T>, options?: ToURLSearch
     return new URLSearchParams(data); // this is ok because URLSearchParams will stringify the values (boolean/number)
 }
 
-function __debounce(this: { [key: string]: { timerId: number } }, timeout: number, id: string): Promise<void> {
-    return new Promise(resolve => {
-        if (this[id]?.timerId)
-            clearTimeout(this[id].timerId);
+const _debounceTimers: { [key: string]: ReturnType<typeof setTimeout> } = {};
 
-        const timerId = setTimeout(() => resolve(), timeout);
+export const _debounce = (timeout: number, id: string): Promise<void> =>
+    new Promise(resolve => {
+        if (_debounceTimers[id]) clearTimeout(_debounceTimers[id]);
 
-        if (this[id]) {
-            this[id].timerId = timerId;
-        } else this[id] = {timerId};
+        _debounceTimers[id] = setTimeout(() => {
+            // drop the entry once it fires so the timer map doesn't grow unbounded
+            delete _debounceTimers[id];
+            resolve();
+        }, timeout);
     });
-}
 
-export const _debounce = __debounce.bind({});
+/** cancel any pending debounce(s) by id and drop their entries (called on field unmount) */
+export const _clearDebounce = (...ids: string[]): void => {
+    for (const id of ids) {
+        if (_debounceTimers[id]) {
+            clearTimeout(_debounceTimers[id]);
+            delete _debounceTimers[id];
+        }
+    }
+};
 
 export const _extractValue = <T>(e?: GChangeEvent<GDOMElement | HTMLFormElement>, unknown?: {
     value: T
-} | string | number): undefined | string | number | boolean | T => {
+} | string | number): undefined | string | number | boolean | File | File[] | null | T => {
     if (e?.target) {
+        if (e.target.type === 'file') {
+            const {files, multiple} = e.target as HTMLInputElement;
+            if (!files) return multiple ? [] : null;
+            return multiple ? Array.from(files) : (files[0] ?? null);
+        }
         if (Object.hasOwn(typeValueDict, e.target.type)) return e.target[typeValueDict[e.target.type] as 'value'];
         return e.target.value;
     }
@@ -313,4 +327,25 @@ export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], dispatch
     };
 
     return formState;
+};
+
+/**
+ * Determine the first violated constraint for an input, checked in the same priority order as
+ * the native `ValidityState`. Short-circuits: each check runs only until a violation is found.
+ */
+export const _manualValidityKey = (input: GInputState<any>): keyof ValidityState | undefined => {
+    const {value, required, minLength, maxLength, pattern, min, max} = input;
+
+    if (required && (!value || (Array.isArray(value) && !value.length))) return 'valueMissing';
+    if (_checkTypeMismatch(input)) return 'typeMismatch';
+
+    if (minLength || maxLength) {
+        const {length} = value.toString();
+        if (minLength && length < minLength) return 'tooShort';
+        if (maxLength && length > maxLength) return 'tooLong';
+    }
+
+    if (pattern && _checkResult(pattern, value)) return 'patternMismatch';
+    if (min && Number(value) < Number(min)) return 'rangeUnderflow';
+    if (max && Number(value) > Number(max)) return 'rangeOverflow';
 };

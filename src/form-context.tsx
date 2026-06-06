@@ -5,7 +5,8 @@ import {useFormHandlers} from "./useFormHandlers";
 import type {InitialState, Store} from "./state";
 import type {GValidators} from "./validations";
 import type {GInputInitialState, GInputProps, GInputState, RNGInputProps} from './fields';
-import {_buildInputInitialValues} from "./helpers";
+import type {GDOMElement} from './form';
+import {_buildInputInitialValues, _clearDebounce} from "./helpers";
 
 const GFormContext = createContext<Store>({} as Store);
 
@@ -42,9 +43,11 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
     const handlers = useFormHandlers(() => stateRef.current, setState, validators, optimized);
 
     const getInputElement = useCallback((formKey: string) => {
-        if (formRef && formRef.current) {
-            return formRef.current[formKey];
-        }
+        if (!formRef || !formRef.current) return;
+        // Use `elements.namedItem` instead of `formRef.current[formKey]`: the latter is
+        // shadowed by HTMLFormElement's own properties, so a field named `submit`, `length`,
+        // `action`, `method`, etc. would resolve to the wrong thing (e.g. the submit() method).
+        return (formRef.current.elements.namedItem(formKey) ?? undefined) as unknown as GDOMElement;
     }, []);
 
     const registerField = useCallback((config: GInputProps | RNGInputProps) => {
@@ -61,14 +64,24 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
 
         const inputState = _buildInputInitialValues(config as GInputInitialState);
 
+        // Fields that mount with a value get their constraint validation baked in now, so
+        // constraint errors render on the first paint (no follow-up re-render). Custom/async
+        // validation still runs in the field's mount effect (with the full field set).
+        if (inputState.value) {
+            inputState.touched = true;
+            handlers._checkConstraints(inputState);
+        }
+
         stateRef.current = {
             ...prev,
             fields: {
                 ...prev.fields,
                 [config.formKey]: {
                     ...inputState,
-                    dispatchChanges: (changes: Partial<GInputState>) =>
-                        handlers._dispatchChanges(changes, config.formKey)
+                    dispatchChanges: (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
+                        options?.validate
+                            ? handlers._dispatchAndValidate(changes, config.formKey)
+                            : handlers._dispatchChanges(changes, config.formKey)
                 }
             }
         };
@@ -78,7 +91,12 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
 
     const unregisterField = useCallback((formKey: string) => {
         const prev = stateRef.current;
-        if (!prev.fields[formKey]) return;
+        const removed = prev.fields[formKey];
+        if (!removed) return;
+
+        // cancel & drop any pending debounce timers for this field so the timer map
+        // doesn't grow unbounded (and to avoid a fetch firing after unmount)
+        _clearDebounce(`${removed.gid}-fetch`, `${removed.gid}-async`);
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const {[formKey]: _, ...remainingFields} = prev.fields;
@@ -98,8 +116,10 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
             listeners.current = new Set();
             stateRef.current = initialState;
             for (const fieldKey in initialState.fields) {
-                initialState.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>) =>
-                    handlers._dispatchChanges(changes, fieldKey);
+                initialState.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
+                    options?.validate
+                        ? handlers._dispatchAndValidate(changes, fieldKey)
+                        : handlers._dispatchChanges(changes, fieldKey);
             }
         } else {
             if (__DEBUG__) {
@@ -107,8 +127,10 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
             }
             listeners.current.clear();
             for (const fieldKey in stateRef.current.fields) {
-                stateRef.current.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>) =>
-                    handlers._dispatchChanges(changes, fieldKey);
+                stateRef.current.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
+                    options?.validate
+                        ? handlers._dispatchAndValidate(changes, fieldKey)
+                        : handlers._dispatchChanges(changes, fieldKey);
             }
         }
 
@@ -145,30 +167,3 @@ export const useFormSelector = <T extends any>(selector: (state: InitialState) =
         () => selector(store.getState()) // for SSR
     );
 };
-
-export function createSelector<
-    State = InitialState,
-    Selectors extends Array<(state: State) => any> = [],
-    Result = any
->(
-    selectors: Selectors,
-    combiner: (...args: {
-        [K in keyof Selectors]: Selectors[K] extends (state: State) => infer R ? R : never;
-    }) => Result
-): (state: State) => Result {
-    let lastArgs: any[] = [];
-    let lastResult: Result;
-
-    return (state: State): Result => {
-        const args = selectors.map(fn => fn(state));
-        if (
-            lastArgs.length === args.length &&
-            args.every((val, i) => val === lastArgs[i])
-        ) {
-            return lastResult;
-        }
-        lastArgs = args;
-        lastResult = combiner(...args as any);
-        return lastResult;
-    };
-}
