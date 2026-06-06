@@ -120,10 +120,6 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
                     } else _handler(changes);
                 }
             }
-
-            // NOTE: initial-value validation is handled at field registration (constraints) and
-            // in each field's mount effect (custom/async). The previous loop here iterated the
-            // first-render `fields` snapshot, which is empty before children register — dead code.
         }, []);
 
         return formComponent;
