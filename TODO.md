@@ -15,6 +15,8 @@ is functional without them. Ordered roughly by impact.
 - ✅ Debounce timer map auto-cleans on fire + `_clearDebounce` on field unmount (no unbounded growth; no fetch-after-unmount).
 - ✅ Removed the dead `createSelector` memo (inlined `makeSelectFields`).
 - ✅ Optimized-mode inputs get a shared no-op `onChange` (no more React "controlled value without onChange" warning).
+- ✅ Initial-value validation: constraints baked at registration (errors on first paint, no extra re-render); removed the dead `GForm` loop + redundant `RNGForm` loop; custom/async still run in the field mount effect (dispatch-only-if-changed).
+- ✅ Initial-value validation syncs native validity (`setCustomValidity`) so an invalid initial value blocks native form submission (was: form refreshed because the browser didn't know it was invalid).
 - ✅ Test coverage expanded: `GValidator`, `selectors`/`fetchDeps`, `dispatchChanges`, debounce cleanup, and a broad `GForm` suite (submission gating, serialization, `onInit`, `stateRef`, validity, dynamic fields, optimized mode).
 
 ---

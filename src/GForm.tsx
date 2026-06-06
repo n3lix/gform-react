@@ -121,26 +121,9 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
                 }
             }
 
-            if (__DEBUG__) {
-                console.log('checking for initial values');
-            }
-
-            for (const fieldKey in fields) {
-                const field = fields[fieldKey];
-
-                //we don't want to apply validation on empty fields, so skip it.
-                if (!field.value) continue;
-
-                if (__DEBUG__) {
-                    console.log(`found input '${fieldKey}', applying validation(s)`);
-                }
-                /**
-                 * We have to manually check for validations (checkValidity() will not result with validity.tooShort = true).
-                 * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
-                 * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
-                 */
-                handlers._viHandler(field);
-            }
+            // NOTE: initial-value validation is handled at field registration (constraints) and
+            // in each field's mount effect (custom/async). The previous loop here iterated the
+            // first-render `fields` snapshot, which is empty before children register — dead code.
         }, []);
 
         return formComponent;

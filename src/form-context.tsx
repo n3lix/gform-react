@@ -64,6 +64,14 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
 
         const inputState = _buildInputInitialValues(config as GInputInitialState);
 
+        // Fields that mount with a value get their constraint validation baked in now, so
+        // constraint errors render on the first paint (no follow-up re-render). Custom/async
+        // validation still runs in the field's mount effect (with the full field set).
+        if (inputState.value) {
+            inputState.touched = true;
+            handlers._checkConstraints(inputState);
+        }
+
         stateRef.current = {
             ...prev,
             fields: {

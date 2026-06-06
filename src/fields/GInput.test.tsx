@@ -302,3 +302,73 @@ describe('GInput field dispatchChanges', () => {
         expect(get().isInvalid).toBe(true);
     });
 });
+
+describe('GInput initial value validation', () => {
+    // `elementCalls` counts how many times the field's `_element` was (re)computed; a follow-up
+    // validation re-render would bump it past 1.
+    const renderWithInitial = (value: string) => {
+        let elementCalls = 0;
+        const Form = () => {
+            const el = React.useCallback((input: GInputState<any>, props: GElementProps<any>) => {
+                elementCalls++;
+                return (
+                    <div>
+                        <input {...props}/>
+                        {input.error && <small data-testid="err">{input.errorText}</small>}
+                    </div>
+                );
+            }, []);
+            return (
+                <GForm validators={{a: new GValidator().withMinLengthMessage('too short')}}>
+                    <GInput formKey="a" value={value} minLength={2} required element={el}/>
+                </GForm>
+            );
+        };
+        render(<Form/>);
+        return () => elementCalls;
+    };
+
+    it('shows a constraint error for an invalid initial value on the first render (no extra validation render)', () => {
+        const calls = renderWithInitial('J'); // length 1 < minLength 2
+
+        expect(screen.getByTestId('err')).toHaveTextContent('too short');
+        expect(calls()).toBe(1); // baked at registration → no follow-up validation re-render
+    });
+
+    it('shows no error for a valid initial value, and renders once', () => {
+        const calls = renderWithInitial('John');
+
+        expect(screen.queryByTestId('err')).toBeNull();
+        expect(calls()).toBe(1);
+    });
+
+    // Regression: an invalid initial value must mark the field invalid *natively* so the browser
+    // blocks submission. Otherwise the submit event fires, GForm sees `isInvalid` and skips
+    // onSubmit/preventDefault, and the page does a native form refresh. A custom validator is
+    // used because the browser has no native constraint for it — so this isolates our
+    // setCustomValidity sync (a constraint like minLength might be flagged natively by jsdom).
+    const renderWithCustom = (value: string) => {
+        render(
+            <GForm validators={{a: new GValidator().withCustomValidation((input) => {
+                input.errorText = 'bad value';
+                return input.value === 'bad'; // invalid only when value is "bad"
+            })}}>
+                <GInput formKey="a" value={value} data-testid="i"/>
+                <button type="submit">Submit</button>
+            </GForm>
+        );
+        const form = screen.getByTestId('i').closest('form') as HTMLFormElement;
+        // checkValidity() fires `invalid` events → state updates → wrap in act
+        let valid = false;
+        act(() => { valid = form.checkValidity(); });
+        return valid;
+    };
+
+    it('marks the form invalid natively for an invalid initial value (blocks submit, no refresh)', () => {
+        expect(renderWithCustom('bad')).toBe(false);
+    });
+
+    it('keeps the form valid natively for a valid initial value', () => {
+        expect(renderWithCustom('ok')).toBe(true);
+    });
+});

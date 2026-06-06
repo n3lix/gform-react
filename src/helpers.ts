@@ -328,3 +328,24 @@ export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], dispatch
 
     return formState;
 };
+
+/**
+ * Determine the first violated constraint for an input, checked in the same priority order as
+ * the native `ValidityState`. Short-circuits: each check runs only until a violation is found.
+ */
+export const _manualValidityKey = (input: GInputState<any>): keyof ValidityState | undefined => {
+    const {value, required, minLength, maxLength, pattern, min, max} = input;
+
+    if (required && (!value || (Array.isArray(value) && !value.length))) return 'valueMissing';
+    if (_checkTypeMismatch(input)) return 'typeMismatch';
+
+    if (minLength || maxLength) {
+        const {length} = value.toString();
+        if (minLength && length < minLength) return 'tooShort';
+        if (maxLength && length > maxLength) return 'tooLong';
+    }
+
+    if (pattern && _checkResult(pattern, value)) return 'patternMismatch';
+    if (min && Number(value) < Number(min)) return 'rangeUnderflow';
+    if (max && Number(value) > Number(max)) return 'rangeOverflow';
+};

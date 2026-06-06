@@ -1,10 +1,9 @@
-import React, {FormEvent, forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
+import React, {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 
 import {_debounce} from '../helpers';
 import type {GInputProps, GInputState, GElementProps} from '.';
 import {useFormSelector, useFormStore} from "../form-context";
 import {makeSelectFields} from "../selectors";
-import {type GDOMElement} from "../form";
 
 // Stable no-op handler. In optimized mode the input has no real onChange (change is delegated
 // to the <form>), but a controlled input still needs *some* onChange or React warns
@@ -47,8 +46,11 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
     const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
 
     useEffect(() => {
+        // constraint errors for initial values are baked at registration; this runs
+        // custom/async validation (with the full field set), syncs native validity so an
+        // invalid initial value blocks submission, and only re-renders if the result changes
         if (inputState.value) {
-            store.handlers._viHandler(inputState, {target: store.getInputElement(formKey)} as unknown as FormEvent<GDOMElement>);
+            store.handlers._validateInitialField(inputState, formKey, store.getInputElement(formKey));
         }
         return () => {
             if (__DEBUG__) {

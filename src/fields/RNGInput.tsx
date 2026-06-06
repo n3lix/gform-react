@@ -1,11 +1,10 @@
-import {FormEvent, forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
+import {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 import {TextInput} from 'react-native';
 
 import {_debounce} from '../helpers';
 import {useFormSelector, useFormStore} from "../form-context";
 import {makeSelectFields} from "../selectors";
 import type {GInputState, RNGInputProps} from '.';
-import type {GDOMElement} from "../form";
 
 const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
     const store = useFormStore();
@@ -36,8 +35,11 @@ const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
     const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
 
     useEffect(() => {
+        // constraint errors for initial values are baked at registration; this runs
+        // custom/async validation and only re-renders if it changes (no native element in RN,
+        // so getInputElement returns undefined and setCustomValidity is skipped)
         if (inputState.value) {
-            store.handlers._viHandler(inputState, {target: store.getInputElement(formKey)} as unknown as FormEvent<GDOMElement>);
+            store.handlers._validateInitialField(inputState, formKey, store.getInputElement(formKey));
         }
         return () => {
             if (__DEBUG__) {
