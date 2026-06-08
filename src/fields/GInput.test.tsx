@@ -372,3 +372,56 @@ describe('GInput initial value validation', () => {
         expect(renderWithCustom('ok')).toBe(true);
     });
 });
+
+describe('GInput element control types', () => {
+    // These spread the `element` props onto <select>/<textarea> WITHOUT a cast — if the typing
+    // regressed, `tsc` would fail on these files (jest itself strips types).
+    it('renders a <select> via element and updates value', () => {
+        let api: GFormState<{ choice: string }> | undefined;
+        render(
+            <GForm<{ choice: string }>>
+                {(state) => {
+                    api = state;
+                    return (
+                        <GInput
+                            formKey="choice"
+                            value="a"
+                            element={(input, props) => (
+                                <select {...props} data-testid="sel">
+                                    <option value="a">A</option>
+                                    <option value="b">B</option>
+                                </select>
+                            )}
+                        />
+                    );
+                }}
+            </GForm>
+        );
+
+        const sel = screen.getByTestId('sel') as HTMLSelectElement;
+        expect(sel.value).toBe('a');
+
+        fireEvent.change(sel, {target: {value: 'b'}});
+        expect(api!.choice.value).toBe('b');
+    });
+
+    it('renders a <textarea> via element and updates value', () => {
+        let api: GFormState<{ bio: string }> | undefined;
+        render(
+            <GForm<{ bio: string }>>
+                {(state) => {
+                    api = state;
+                    return (
+                        <GInput
+                            formKey="bio"
+                            element={(input, props) => <textarea {...props} data-testid="ta"/>}
+                        />
+                    );
+                }}
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('ta'), {target: {value: 'hello world'}});
+        expect(api!.bio.value).toBe('hello world');
+    });
+});

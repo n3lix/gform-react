@@ -1,3 +1,6 @@
+## 2.9.1
+* **`element` supports `<select>` / `<textarea>` natively** — the props passed to a field's `element` render handler can now be spread onto `<input>`, `<select>`, or `<textarea>` without a cast. `GElementProps` is now the intersection of the three controls' attribute sets (which is assignable to each individually) instead of being `<input>`-only. Existing `<input>`/`element` usage is unaffected
+
 ## 2.9.0
 * **File input support (`type="file"`)** — file inputs now store the real `File` object instead of the browser's `C:\fakepath\...` string. The stored value is `File | null` for a single file and `File[]` when the `multiple` attribute is set
 * **File inputs are uncontrolled** — `GInput` no longer forces a `value`/`checked` prop on `type="file"`, complying with the DOM constraint that file inputs cannot be controlled; the selected `FileList` is owned by the DOM and reflected into form state on change

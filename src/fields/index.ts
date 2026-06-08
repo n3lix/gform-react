@@ -1,4 +1,4 @@
-import type {InputHTMLAttributes, HTMLInputTypeAttribute, ReactNode} from 'react';
+import type {InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, HTMLInputTypeAttribute, ReactNode} from 'react';
 import type { IForm } from '../form';
 import type { TextInputProps } from 'react-native';
 
@@ -14,9 +14,20 @@ export type BaseGenericFieldProps = {
     required?: boolean;
 };
 
-export type GElementProps<T> = Omit<InputHTMLAttributes<any>, 'color' | 'size' | 'onChange' | 'min' | 'max' | 'step'> & {
+/**
+ * Attributes common to the form controls `element` may render. Typed as the intersection of
+ * `<input>`, `<select>`, and `<textarea>` attribute sets — an intersection is assignable to each
+ * individually, so the resulting `GElementProps` can be spread onto any of them without a cast.
+ * `onChange` and `ref` are intentionally omitted from the type (they're injected at runtime).
+ */
+type GControlAttributes = Omit<
+    InputHTMLAttributes<any> & SelectHTMLAttributes<any> & TextareaHTMLAttributes<any>,
+    'color' | 'size' | 'onChange' | 'min' | 'max' | 'step' | 'value'
+>;
+
+export type GElementProps<T> = GControlAttributes & {
     value: T;
-    step?: number
+    step?: number;
     max?: number;
     min?: number;
 };

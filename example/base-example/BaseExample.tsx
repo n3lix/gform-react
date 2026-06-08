@@ -6,6 +6,7 @@ import {SignUpForm, validators} from "../validators";
 import {GInput} from "../../src/fields/GInput";
 import {useFormSelector} from "../../src/form-context";
 import TestForm from "./TestForm";
+import {GElementProps, GInputState} from "@generic-form/fields";
 
 const Test = () => {
     const city = useFormSelector(state => state.fields.city);
@@ -25,7 +26,7 @@ const BaseExample = () => {
 
     const ref = useRef<HTMLFormElement>(null);
 
-    const renderInput = useCallback((input: any, props: any) => {
+    const renderInput = useCallback((input: GInputState, props: GElementProps<any>) => {
         return <div>
             <input {...props} />
             {input.error && <small>{input.errorText}</small>}
@@ -65,6 +66,21 @@ const BaseExample = () => {
                             required
                             validatorKey={'email'}
                             element={renderInput}
+                    />
+
+                    <GInput formKey={'select'}
+                            id="select"
+                            required
+                            element={(input, props) => {
+                                return <div>
+                                    <select {...props}>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                    </select>
+                                    {input.error && <small>{input.errorText}</small>}
+                                </div>;
+                            }}
                     />
 
                     <button>test</button>
