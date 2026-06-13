@@ -6,13 +6,13 @@ import {SignUpForm, validators} from "../validators";
 import {GInput} from "../../src/fields/GInput";
 import {useFormSelector} from "../../src/form-context";
 import TestForm from "./TestForm";
-
+import {GInputState, GElementProps} from '../../src/fields';
 
 const Test = () => {
     const city = useFormSelector(state => state.fields.city);
     // console.log(city);
     return (<div>test!!!!!!!</div>);
-}
+};
 
 const values = {
     firstName: 'John',
@@ -27,6 +27,7 @@ const BaseExample = () => {
     const ref = useRef<HTMLFormElement>(null);
 
     const renderInput = useCallback((input: GInputState, props: GElementProps<any>) => {
+        console.log(input);
         return <div>
             <input {...props} />
             {input.error && <small>{input.errorText}</small>}
