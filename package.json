@@ -1,6 +1,6 @@
 {
   "name": "gform-react",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "description": "Build generic forms with validations for React-based applications",
   "author": "Tal Maman, Arkady Birko",
   "license": "MIT",
@@ -24,21 +24,21 @@
   "typings": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "require": "./dist/cjs/index.js",
       "import": {
         "production": "./dist/esm/index.js",
         "development": "./dist/esm/index.development.js"
       },
-      "types": "./dist/index.d.ts",
       "default": "./dist/esm/index.js"
     },
     "./native": {
+      "types": "./native/dist/index.d.ts",
       "require": "./native/dist/cjs/index.js",
       "import": {
         "production": "./native/dist/esm/index.js",
         "development": "./native/dist/esm/index.development.js"
       },
-      "types": "./native/dist/index.d.ts",
       "default": "./native/dist/esm/index.js"
     }
   },
@@ -47,16 +47,12 @@
     "dist",
     "native"
   ],
-  "dependencies": {
-    "@babel/runtime": "^7.28.4"
-  },
   "peerDependencies": {
-    "react": ">=16.8.0",
-    "react-dom": ">=16.8.0"
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",
-    "@babel/plugin-transform-runtime": "^7.28.5",
     "@babel/preset-env": "^7.28.5",
     "@babel/preset-react": "^7.28.5",
     "@babel/preset-typescript": "^7.28.5",
@@ -81,7 +77,9 @@
     "jest-environment-jsdom": "^30.2.0",
     "primeicons": "^7.0.0",
     "primereact": "^10.9.7",
-    "react-native": "0.73.4",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-native": "^0.86.0",
     "rimraf": "^5.0.1",
     "rollup": "^4.59.0",
     "rollup-plugin-copy": "^3.5.0",

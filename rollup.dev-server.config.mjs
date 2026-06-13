@@ -12,6 +12,25 @@ const strict = mode === 'strict';
 
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
 
+/**
+ * The dev server bundles the *web* example only, but any import that reaches the fields barrel
+ * (src/fields/index.ts) pulls in RNGInput → react-native, whose Flow-typed source rollup cannot
+ * parse ("Expected 'from', got 'typeOf'"). Resolve react-native to an inert stub instead —
+ * RNGInput is never rendered on the web, so the stub is tree-shaken away with it.
+ */
+function stubReactNative() {
+    const stubId = '\0react-native-stub';
+    return {
+        name: 'stub-react-native',
+        resolveId(source) {
+            return source === 'react-native' ? stubId : null;
+        },
+        load(id) {
+            return id === stubId ? 'export const TextInput = {};' : null;
+        }
+    };
+}
+
 function startServer(options) {
     let started = false;
 
@@ -37,6 +56,7 @@ export default {
     },
 
     plugins: [
+        stubReactNative(),
         replace({
             preventAssignment: true,
             values: {
@@ -51,16 +71,10 @@ export default {
         babel({
             extensions,
             exclude: 'node_modules/**',
-            babelHelpers: 'runtime',
-            plugins: [
-                ['@babel/plugin-transform-runtime', {
-                    useESModules: true,
-                    version: "7.22.5"
-                }]
-            ],
+            babelHelpers: 'bundled',
             presets: [
                 ['@babel/preset-env', {
-                    targets: { esmodules: true },
+                    targets: { chrome: '80', edge: '80', firefox: '74', safari: '13.1' },
                     bugfixes: true,
                     modules: false
                 }]

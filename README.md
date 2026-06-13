@@ -8,7 +8,7 @@
 
 ## Features
 
-- **Lightweight**
+- **Lightweight – no dependencies**
 - **Tree‑shakable** — import only what you use to keep bundles small
 - **Minimal re-renders** — updates only the fields that actually change
 - **Native HTML constraint validation** — full support for `min`, `max`, `pattern`, `minLength`, `maxLength`, `required`, and more
@@ -163,7 +163,8 @@ yarn add gform-react
 ```
 
 ## Peer dependencies
-react >=16.8.0, react-dom >=16.8.0 are peer dependencies
+react >=18.0.0, react-dom >=18.0.0 are peer dependencies (the library is built on
+`useSyncExternalStore`, which was introduced in React 18)
 
 ## License
 

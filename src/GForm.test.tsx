@@ -236,6 +236,34 @@ describe('GForm optimized mode', () => {
         expect(errSpy).not.toHaveBeenCalled();
         errSpy.mockRestore();
     });
+
+    it('delegated blur skips dispatch for a validator-less field but still validates one with a validator', () => {
+        let renders = 0;
+        render(
+            <GForm optimized validators={{ validated: new GValidator().withRequiredMessage('required field') }}>
+                <GInput formKey="plain" optimized element={(input, props) => {
+                    renders++;
+                    return <input {...props} data-testid="plain"/>;
+                }}/>
+                <GInput formKey="validated" optimized required element={(input, props) => (
+                    <div>
+                        <input {...props} data-testid="validated"/>
+                        {input.error && <span data-testid="err">{input.errorText}</span>}
+                    </div>
+                )}/>
+            </GForm>
+        );
+
+        const plain = screen.getByTestId('plain');
+        fireEvent.blur(plain); // touched flip
+        const after = renders;
+        fireEvent.blur(plain);
+        fireEvent.blur(plain);
+        expect(renders).toBe(after); // no validator → delegated blur dispatches nothing further
+
+        fireEvent.blur(screen.getByTestId('validated'));
+        expect(screen.getByTestId('err')).toHaveTextContent('required field');
+    });
 });
 
 describe('GForm dispatchChanges (form-level)', () => {
@@ -264,5 +292,86 @@ describe('GForm dispatchChanges (form-level)', () => {
         expect(latest!.b.value).toBe('y');
         expect((screen.getByTestId('a') as HTMLInputElement).value).toBe('x');
         expect((screen.getByTestId('b') as HTMLInputElement).value).toBe('y');
+    });
+});
+
+describe('GForm native reset', () => {
+    it('restores fields to their initial values on a native reset', () => {
+        render(
+            <GForm>
+                <GInput formKey="name" value="Ada" data-testid="name"/>
+                <GInput formKey="city" data-testid="city"/>
+                <button type="reset">Reset</button>
+            </GForm>
+        );
+
+        const name = screen.getByTestId('name') as HTMLInputElement;
+        const city = screen.getByTestId('city') as HTMLInputElement;
+
+        fireEvent.change(name, {target: {value: 'Grace'}});
+        fireEvent.change(city, {target: {value: 'London'}});
+        expect(name.value).toBe('Grace');
+        expect(city.value).toBe('London');
+
+        fireEvent.click(screen.getByRole('button', {name: 'Reset'}));
+
+        expect(name.value).toBe('Ada'); // back to its initial value
+        expect(city.value).toBe('');    // back to empty (no initial value)
+    });
+
+    it('clears validation errors on reset and calls onReset with the form state', () => {
+        const onReset = jest.fn();
+        render(
+            <GForm
+                validators={{name: new GValidator().withRequiredMessage('required')}}
+                onReset={onReset}
+            >
+                <GInput
+                    formKey="name"
+                    required
+                    element={(input, props) => (
+                        <div>
+                            <input {...props} data-testid="name"/>
+                            {input.error && <span data-testid="err">{input.errorText}</span>}
+                        </div>
+                    )}
+                />
+                <button type="reset">Reset</button>
+            </GForm>
+        );
+
+        const name = screen.getByTestId('name') as HTMLInputElement;
+
+        // drive the field invalid (required, left empty) so an error is showing
+        fireEvent.change(name, {target: {value: 'x'}});
+        fireEvent.change(name, {target: {value: ''}});
+        fireEvent.blur(name);
+        expect(screen.getByTestId('err')).toHaveTextContent('required');
+
+        fireEvent.click(screen.getByRole('button', {name: 'Reset'}));
+
+        expect(screen.queryByTestId('err')).toBeNull(); // error cleared
+        expect(name.value).toBe('');
+        expect(onReset).toHaveBeenCalledTimes(1);
+        const [state] = onReset.mock.calls[0];
+        expect(state.name.value).toBe('');
+    });
+
+    it('uses onInit-seeded values as the reset baseline', () => {
+        render(
+            <GForm onInit={() => ({name: {value: 'Seeded'}})}>
+                <GInput formKey="name" data-testid="name"/>
+                <button type="reset">Reset</button>
+            </GForm>
+        );
+
+        const name = screen.getByTestId('name') as HTMLInputElement;
+        expect(name.value).toBe('Seeded'); // onInit applied
+
+        fireEvent.change(name, {target: {value: 'Edited'}});
+        expect(name.value).toBe('Edited');
+
+        fireEvent.click(screen.getByRole('button', {name: 'Reset'}));
+        expect(name.value).toBe('Seeded'); // back to the onInit value, not empty
     });
 });
