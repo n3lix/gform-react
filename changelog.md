@@ -1,4 +1,5 @@
 ## 2.9.1
+* **Blur skips validation for fields without a validator** — blurring a field that resolves no validator (no `formKey`/`validatorKey` match and no `'*'` wildcard) no longer runs the validation pipeline or dispatches state, eliminating a wasted re-render per blur (validation could never change `error` for such fields). The blur contracts are preserved: `touched` still flips (one dispatch on the first blur only), a consumer `onBlur` still fires, and the field's `checkValidity()` now reports validity from its `error` flag instead of the registration default that always returned `false` (so `RNGFormState.checkValidity()` stays correct). Applies to web, optimized (delegated) and React Native blur paths; change and `invalid` events are unaffected
 * **`element` supports `<select>` / `<textarea>` natively** — the props passed to a field's `element` render handler can now be spread onto `<input>`, `<select>`, or `<textarea>` without a cast. `GElementProps` is now the intersection of the three controls' attribute sets (which is assignable to each individually) instead of being `<input>`-only. Existing `<input>`/`element` usage is unaffected
 
 ## 2.9.0

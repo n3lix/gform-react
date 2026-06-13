@@ -38,7 +38,6 @@ const basePlugins = [
 
 const external = [
     ...Object.keys(packageJson.peerDependencies),
-    /@babel\/runtime/,
     'react-native'
 ];
 
@@ -46,25 +45,33 @@ function babelConfig(es = false) {
     return babel({
         extensions,
         exclude: 'node_modules/**',
-        babelHelpers: 'runtime',
+        babelHelpers: 'bundled',
         babelrc: false,
         configFile: false,
         babelrcRoots: false,
         comments: false,
-        plugins: [
-            ['@babel/plugin-transform-runtime', { useESModules: es }]
-        ],
         presets: [
             [
                 "@babel/preset-env",
                 {
-                    targets: es ? { esmodules: true } : { node: '14' },
+                    // NOTE: don't use `esmodules: true` for the ESM build — it means "any
+                    // browser that can load ES modules" (Safari 10.1, Edge 16, 2017-era),
+                    // which downlevels object spread/rest into babel helpers and bloats the
+                    // bundle ~30% vs the CJS build. The ES2020 floor below matches what the
+                    // CJS build (node 14) has always shipped (`?.`/`??` kept native), so both
+                    // builds support the same browsers; anything newer than ES2020 that lands
+                    // in src gets downleveled instead of silently raising the floor.
+                    targets: es
+                        ? { chrome: '80', edge: '80', firefox: '74', safari: '13.1' }
+                        : { node: '14' },
                     modules: false,
                     bugfixes: true
                 }
             ],
             "@babel/preset-typescript",
-            "@babel/preset-react"
+            // useBuiltIns: JSX spread compiles to Object.assign (native on all targets)
+            // instead of the @babel/runtime `_extends` helper.
+            ["@babel/preset-react", { useBuiltIns: true }]
         ],
         sourceType: "module"
     });
@@ -127,8 +134,10 @@ const esm = {
                 {
                     src: 'src/index.ts',
                     dest: 'dist/esm',
-                    rename: isProd ? 'index.js' : `index.${process.env.BUILD}.js`,
-                    transform: (contents) => Object.keys(esmEntries).map(name => `export { ${name} } from './${name}.${process.env.BUILD}.js';`).join('\n')
+                    // use `env` (from process.env.build) — process.env.BUILD only works on
+                    // Windows, where environment variables are case-insensitive
+                    rename: isProd ? 'index.js' : `index.${env}.js`,
+                    transform: () => Object.keys(esmEntries).map(name => `export { ${name} } from './${name}.${env}.js';`).join('\n')
                 }
             ]
         })
@@ -171,8 +180,8 @@ const nativeESM = {
                 {
                     src: 'src/rn/index.ts',
                     dest: 'native/dist/esm',
-                    rename: isProd ? 'index.js' : `index.${process.env.BUILD}.js`,
-                    transform: (contents) => Object.keys(rnESMEntries).map(name => `export { ${name} } from './${name}.${process.env.BUILD}.js';`).join('\n')
+                    rename: isProd ? 'index.js' : `index.${env}.js`,
+                    transform: () => Object.keys(rnESMEntries).map(name => `export { ${name} } from './${name}.${env}.js';`).join('\n')
                 }
             ]
         })

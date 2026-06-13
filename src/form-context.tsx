@@ -72,6 +72,15 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
             handlers._checkConstraints(inputState);
         }
 
+        // snapshot the resettable state so a native <form> reset can restore it (handlers._resetForm)
+        inputState._initial = {
+            value: inputState.value,
+            error: inputState.error,
+            errorText: inputState.errorText,
+            touched: inputState.touched,
+            dirty: inputState.dirty,
+        };
+
         stateRef.current = {
             ...prev,
             fields: {

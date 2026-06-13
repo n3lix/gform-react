@@ -5,6 +5,10 @@ import type {GChangeEvent, GDOMElement, GFocusEvent, GFormEvent, GInvalidEvent} 
 import type {InitialState, Store} from "./state";
 import {handlersMap, validityMap} from "./validations/GValidator";
 
+function _checkValidityFromError(this: GInputState<any>): boolean {
+    return !this.error;
+}
+
 export const useFormHandlers = (getState: Store['getState'], setState: Store['setState'], validators: GValidators = {}, optimized = false) => {
     /**
      * handler for validating a form input
@@ -56,6 +60,37 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             input.checkValidity = () => _checkInputManually(input).isValid;
             input.checkValidity();
 
+            _dispatchChanges(input, input.formKey);
+        }
+    };
+
+    /**
+     * Blur-path entry point. Fields with a resolved validator go through the full `_viHandler`
+     * pipeline. Fields without one skip it — validation would no-op, so dispatching (and
+     * re-rendering) on every blur is wasted work. The two contracts blur still owes are kept
+     * cheaply:
+     * - `checkValidity` is pointed at `error` instead of the registration default (which always
+     *   returns `false` and would make `RNGFormState.checkValidity()` fail forever);
+     * - `touched` flips once, with a single dispatch on the first blur only.
+     *
+     * Not used on the change path: `_updateInputHandler` relies on `_viHandler`'s dispatch to
+     * propagate the new value to the store regardless of validators.
+     */
+    const _blurHandler = (input: GInputState<any>, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
+        if (!input) return;
+
+        if (validators[input.validatorKey || input.formKey] || validators['*']) {
+            _viHandler(input, e);
+            return;
+        }
+
+        if (__DEBUG__) {
+            console.log('[blurHandler] -', `the input '${input.formKey}' has no validator - skipping validation`);
+        }
+
+        input.checkValidity = _checkValidityFromError;
+        if (!input.touched) {
+            input.touched = true;
             _dispatchChanges(input, input.formKey);
         }
     };
@@ -155,6 +190,48 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
     };
 
     /**
+     * Restore every field to the snapshot captured at registration — value, validity, and the
+     * `touched`/`dirty` flags (see `_initial` in `registerField`). This backs the native `<form>`
+     * reset: gform owns each field's value (controlled inputs read from the store), so clearing the
+     * DOM alone does nothing — the store is the source of truth and is restored here, after which
+     * the inputs re-render to match. Custom/async validators are not re-run, mirroring the
+     * constraint-only state of the field's first paint.
+     */
+    const _resetForm = (): void => setState(prev => {
+        const fields = {} as InitialState['fields'];
+        for (const key in prev.fields) {
+            const field = prev.fields[key];
+            fields[key] = field._initial ? {...field, ...field._initial} : field;
+        }
+        return {...prev, fields};
+    });
+
+    /**
+     * Re-capture the `_initial` snapshot for the given fields from their current state. Called after
+     * `onInit` seeds values so that those seeded values — rather than the original `value` props —
+     * become the baseline that a native reset restores to. Fields `onInit` doesn't touch keep the
+     * snapshot taken at registration.
+     */
+    const _seedInitial = (keys: string[]): void => setState(prev => {
+        const fields = {...prev.fields};
+        for (const key of keys) {
+            const field = fields[key];
+            if (!field) continue;
+            fields[key] = {
+                ...field,
+                _initial: {
+                    value: field.value,
+                    error: field.error,
+                    errorText: field.errorText,
+                    touched: field.touched,
+                    dirty: field.dirty,
+                },
+            };
+        }
+        return {...prev, fields};
+    });
+
+    /**
      * Validate a field that mounts with a value (called from the field's mount effect).
      * Constraint errors were already baked at registration; this runs the full check
      * (custom/async, with the complete field set) and dispatches ONLY when the result changes —
@@ -246,5 +323,5 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
     };
 
-    return {_updateInputHandler, _viHandler, _dispatchChanges, _dispatchAndValidate, _checkConstraints, _validateInitialField, optimized, _createInputChecker: _checkInputManually};
+    return {_updateInputHandler, _viHandler, _blurHandler, _dispatchChanges, _dispatchAndValidate, _checkConstraints, _validateInitialField, _resetForm, _seedInitial, optimized, _createInputChecker: _checkInputManually};
 };

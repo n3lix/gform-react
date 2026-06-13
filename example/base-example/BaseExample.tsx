@@ -6,7 +6,7 @@ import {SignUpForm, validators} from "../validators";
 import {GInput} from "../../src/fields/GInput";
 import {useFormSelector} from "../../src/form-context";
 import TestForm from "./TestForm";
-import {GElementProps, GInputState} from "@generic-form/fields";
+
 
 const Test = () => {
     const city = useFormSelector(state => state.fields.city);

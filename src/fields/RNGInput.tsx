@@ -61,12 +61,12 @@ const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
 
         _props.onEndEditing = rest.onEndEditing ?
             (e) => {
-                store.handlers._viHandler(inputState);
+                store.handlers._blurHandler(inputState);
                 rest.onEndEditing!(e);
             }
             :
             () => {
-                store.handlers._viHandler(inputState);
+                store.handlers._blurHandler(inputState);
             };
         _props.onChangeText = rest.onChangeText ?
             (e) => {

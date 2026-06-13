@@ -86,10 +86,10 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
         if (!store.handlers.optimized || !optimized) {
             _props.onBlur = rest.onBlur ?
                 (e) => {
-                    store.handlers._viHandler(inputState, e);
+                    store.handlers._blurHandler(inputState, e);
                     rest.onBlur!(e);
                 } : (e) => {
-                    store.handlers._viHandler(inputState, e);
+                    store.handlers._blurHandler(inputState, e);
                 };
 
             _props.onInvalid = rest.onInvalid ?

@@ -224,6 +224,76 @@ describe('GInput', () => {
     });
 });
 
+describe('GInput blur without validator', () => {
+    it('does not re-render on blur beyond the one-time touched flip', () => {
+        let renders = 0;
+        const el = (input: GInputState<any>, props: GElementProps<any>) => {
+            renders++;
+            return <input {...props} data-testid="i"/>;
+        };
+
+        render(
+            <GForm>
+                <GInput formKey="plain" element={el}/>
+            </GForm>
+        );
+        expect(renders).toBe(1);
+
+        const input = screen.getByTestId('i');
+        fireEvent.blur(input);
+        expect(renders).toBe(2); // first blur dispatches the touched flip
+
+        fireEvent.blur(input);
+        fireEvent.blur(input);
+        expect(renders).toBe(2); // no validator → later blurs skip validation and dispatch
+    });
+
+    it('still flips `touched` on the first blur', () => {
+        render(
+            <GForm>
+                <GInput formKey="plain" element={(input, props) => (
+                    <div>
+                        <input {...props} data-testid="i"/>
+                        <span data-testid="touched">{String(input.touched)}</span>
+                    </div>
+                )}/>
+            </GForm>
+        );
+
+        expect(screen.getByTestId('touched')).toHaveTextContent('false');
+        fireEvent.blur(screen.getByTestId('i'));
+        expect(screen.getByTestId('touched')).toHaveTextContent('true');
+    });
+
+    it('still invokes a consumer onBlur handler', () => {
+        const onBlur = jest.fn();
+        render(
+            <GForm>
+                <GInput formKey="plain" onBlur={onBlur} data-testid="i"/>
+            </GForm>
+        );
+
+        fireEvent.blur(screen.getByTestId('i'));
+        expect(onBlur).toHaveBeenCalledTimes(1);
+    });
+
+    it("validates on blur when only a '*' wildcard validator exists", () => {
+        render(
+            <GForm validators={{'*': new GValidator().withRequiredMessage('required field')}}>
+                <GInput formKey="anyField" required element={(input, props) => (
+                    <div>
+                        <input {...props} data-testid="i"/>
+                        {input.error && <span data-testid="err">{input.errorText}</span>}
+                    </div>
+                )}/>
+            </GForm>
+        );
+
+        fireEvent.blur(screen.getByTestId('i'));
+        expect(screen.getByTestId('err')).toHaveTextContent('required field');
+    });
+});
+
 describe('GInput debounce cleanup', () => {
     it('_clearDebounce cancels a pending debounce so it never resolves', async () => {
         let resolved = false;

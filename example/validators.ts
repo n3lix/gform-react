@@ -1,4 +1,4 @@
-import { GValidator, GValidators } from "../src/validations";
+﻿import { GValidator, type GValidators } from "../src/validations";
 
 export interface SignUpForm {
     email: string;
