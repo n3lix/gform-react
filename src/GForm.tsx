@@ -169,7 +169,7 @@ export type GFormProps<T> =
 
 /**
  * build dynamic forms with validations.
- * @link Docs - https://gform-react.onrender.com
+ * @link Docs - https://gform-react.vercel.app
  * @link Npm - https://www.npmjs.com/package/gform-react
  */
 export const GForm = forwardRef<HTMLFormElement, GFormProps<any>>(

@@ -72,7 +72,7 @@ export type RNGFormProps<T> = {
 
 /**
  * build dynamic forms with validations.
- * @link Docs - https://gform-react.onrender.com
+ * @link Docs - https://gform-react.vercel.app
  * @link Npm - https://www.npmjs.com/package/gform-react
  */
 export const RNGForm = forwardRef<any, RNGFormProps<any>>(

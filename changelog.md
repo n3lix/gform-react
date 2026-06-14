@@ -1,3 +1,7 @@
+## 3.0.1
+* **Funding metadata**
+* **Updated docs URL** — README, JSDoc `@link Docs`, and `homepage` now point to `https://gform-react.vercel.app`
+
 ## 3.0.0
 * **BREAKING — minimum React raised to 18** — `react` and `react-dom` peer ranges are now `>=18.0.0` (previously `>=16.8.0`). The form store subscribes via `useSyncExternalStore`, imported directly from `react` (no shim), which is a React 18 API. Consumers on React 16/17 must upgrade to 18+ (React 19 / Next.js 15 supported)
 * **BREAKING — zero runtime dependencies** — the `@babel/runtime` runtime dependency (and the `@babel/plugin-transform-runtime` build plugin) have been removed; the package now ships with no runtime dependencies, staying lightweight and tree-shakable

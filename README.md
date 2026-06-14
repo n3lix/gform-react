@@ -1,6 +1,6 @@
 <div align="center">
-    <a href="https://gform-react.onrender.com" title="GForm React – A lightweight React form library built for performance, validation, and clean form logic">
-        <img src="https://gform-react.onrender.com/gform-logo.png" alt="gform-react logo" />
+    <a href="https://gform-react.vercel.app" title="GForm React – A lightweight React form library built for performance, validation, and clean form logic">
+        <img src="https://gform-react.vercel.app/gform-logo.png" alt="gform-react logo" />
     </a>
     <h1>gform-react</h1>
     <p>A lightweight React form library built for <b>performance</b>, <b>validation</b>, and clean <b>form logic</b></p>
@@ -47,7 +47,7 @@
 
 Full documentation, examples, and API reference:
 
-https://gform-react.onrender.com
+https://gform-react.vercel.app
 
 ## QuickStart
 ```tsx
