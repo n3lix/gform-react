@@ -1,0 +1,77 @@
+name: Release
+
+# Triggered when you push a version tag, e.g. `git push --follow-tags` after `npm version patch`.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # needed to create the GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Guard: the tag must match the version in package.json so we never
+      # publish a mismatched build (e.g. tag v3.0.2 but package.json at 3.0.1).
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME (=$TAG_VERSION) does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+          echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+        id: version
+
+      # `prebuild` runs tscheck + lint + security:check + test before the build.
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Pull the changelog.md section for this version into the release notes.
+      - name: Extract changelog notes
+        id: notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          node -e "
+            const fs = require('fs');
+            const v = process.env.VERSION;
+            const md = fs.readFileSync('changelog.md', 'utf8');
+            const lines = md.split(/\r?\n/);
+            const start = lines.findIndex(l => l.trim() === '## ' + v);
+            if (start === -1) { console.error('No changelog section for ' + v); process.exit(0); }
+            let end = lines.findIndex((l, i) => i > start && /^## /.test(l));
+            if (end === -1) end = lines.length;
+            fs.writeFileSync('RELEASE_NOTES.md', lines.slice(start + 1, end).join('\n').trim() + '\n');
+          "
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

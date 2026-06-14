@@ -1,0 +1,42 @@
+name: CI
+
+# Runs the quality gates on every push to master and on every PR targeting master,
+# so problems surface before a release tag is ever cut.
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run tscheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Security audit
+        run: npm run security:check
+
+      - name: Test
+        run: npm test
+
+      # --ignore-scripts skips the `prebuild` hook so the gates above aren't re-run.
+      - name: Build
+        run: npm run build --ignore-scripts
