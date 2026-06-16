@@ -92,15 +92,21 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
                     store.handlers._blurHandler(inputState, e);
                 };
 
+            const _onInvalid = (e: Parameters<NonNullable<typeof rest.onInvalid>>[0]) => {
+                e.preventDefault(); // hide default browser validation tooltip
+                // a field already in error is also already touched (set together at registration
+                // or on the change/blur path), so re-running validation on submit only forces a
+                // redundant re-render — skip it.
+                if (!inputState.error) {
+                    store.handlers._viHandler(inputState, e);
+                }
+            };
+
             _props.onInvalid = rest.onInvalid ?
                 (e) => {
-                    e.preventDefault(); // hide default browser validation tooltip
-                    store.handlers._viHandler(inputState, e);
+                    _onInvalid(e);
                     rest.onInvalid!(e);
-                } : (e) => {
-                    e.preventDefault(); // hide default browser validation tooltip
-                    store.handlers._viHandler(inputState, e);
-                };
+                } : _onInvalid;
 
             _props.onChange = rest.onChange ?
                 (e, unknown?: { value: unknown } | string | number) => {
