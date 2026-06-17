@@ -245,7 +245,7 @@ describe('GInput blur without validator', () => {
 
         fireEvent.blur(input);
         fireEvent.blur(input);
-        expect(renders).toBe(2); // no validator → later blurs skip validation and dispatch
+        expect(renders).toBe(2); // no validator - later blurs skip validation and dispatch
     });
 
     it('still flips `touched` on the first blur', () => {
@@ -314,7 +314,7 @@ describe('GInput debounce cleanup', () => {
             </GForm>
         );
 
-        // unmount before the debounce window elapses → unregister must cancel it
+        // unmount before the debounce window elapses - unregister must cancel it
         unmount();
         await wait(120);
 
@@ -412,10 +412,27 @@ describe('GInput initial value validation', () => {
         expect(calls()).toBe(1);
     });
 
+    // Regression guard for the `hasInitialValue` early-return in `_viHandler`. Blurring an
+    // untouched initial value must NOT re-derive validity from the native ValidityState:
+    // `validity.tooShort` stays false until the user edits the field, so the native path would
+    // wipe the constraint error baked at mount and let the form submit. The early return keeps
+    // the manually-computed error (and its setCustomValidity) intact.
+    it('keeps the constraint error after blurring an untouched initial value (submit stays blocked)', () => {
+        renderWithInitial('J'); // length 1 < minLength 2, never edited
+        const input = screen.getByRole('textbox') as HTMLInputElement;
+
+        act(() => { fireEvent.blur(input); });
+
+        expect(input.validity.tooShort).toBe(false);                 // native can't see it (un-edited)
+        expect(screen.getByTestId('err')).toHaveTextContent('too short');
+        expect(input.validity.customError).toBe(true);               // setCustomValidity stays synced
+        expect(input.closest('form')!.checkValidity()).toBe(false);  // form stays invalid - no refresh
+    });
+
     // Regression: an invalid initial value must mark the field invalid *natively* so the browser
     // blocks submission. Otherwise the submit event fires, GForm sees `isInvalid` and skips
     // onSubmit/preventDefault, and the page does a native form refresh. A custom validator is
-    // used because the browser has no native constraint for it — so this isolates our
+    // used because the browser has no native constraint for it - so this isolates our
     // setCustomValidity sync (a constraint like minLength might be flagged natively by jsdom).
     const renderWithCustom = (value: string) => {
         render(
@@ -428,7 +445,7 @@ describe('GInput initial value validation', () => {
             </GForm>
         );
         const form = screen.getByTestId('i').closest('form') as HTMLFormElement;
-        // checkValidity() fires `invalid` events → state updates → wrap in act
+        // checkValidity() fires `invalid` events -> state updates -> wrap in act
         let valid = false;
         act(() => { valid = form.checkValidity(); });
         return valid;
@@ -444,7 +461,7 @@ describe('GInput initial value validation', () => {
 });
 
 describe('GInput element control types', () => {
-    // These spread the `element` props onto <select>/<textarea> WITHOUT a cast — if the typing
+    // These spread the `element` props onto <select>/<textarea> WITHOUT a cast - if the typing
     // regressed, `tsc` would fail on these files (jest itself strips types).
     it('renders a <select> via element and updates value', () => {
         let api: GFormState<{ choice: string }> | undefined;

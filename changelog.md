@@ -1,3 +1,6 @@
+## 3.0.2
+* Fixed async validator swallowing the first submit
+
 ## 3.0.1
 * **Funding metadata**
 * **Updated docs URL** — README, JSDoc `@link Docs`, and `homepage` now point to `https://gform-react.vercel.app`

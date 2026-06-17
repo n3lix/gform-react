@@ -94,7 +94,7 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
                 }
             }
         };
-        // No listeners.current.forEach() here — the subscribing component
+        // No listeners.current.forEach() here - the subscribing component
         // will read the updated stateRef immediately via useSyncExternalStore
     }, [handlers]);
 

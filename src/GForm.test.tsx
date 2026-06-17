@@ -375,3 +375,55 @@ describe('GForm native reset', () => {
         expect(name.value).toBe('Seeded'); // back to the onInit value, not empty
     });
 });
+
+describe('GForm async validator submit gating', () => {
+    // Regression: an async validator re-validated on the blur fired by clicking submit used to
+    // optimistically re-set `error = true`, blocking the first submit until the async re-resolved
+    // (so only the second click worked). A value unchanged since its last settled result must not
+    // be re-validated on blur.
+    it('submits on the first attempt after an async validator settles valid', async () => {
+        const onSubmit = jest.fn();
+        const validators = {
+            firstName: new GValidator().withCustomValidationAsync(async (input) => {
+                input.errorText = 'must include !';
+                return !String(input.value).includes('!'); // true => invalid
+            }),
+        };
+
+        render(
+            <GForm
+                validators={validators}
+                onSubmit={(state, e) => { e.preventDefault(); onSubmit(state); }}
+            >
+                <GInput
+                    formKey="firstName"
+                    value="asd"
+                    debounce={20}
+                    element={(input, props) => (
+                        <div>
+                            <input {...props} data-testid="firstName"/>
+                            {input.error && <small data-testid="err">{input.errorText}</small>}
+                        </div>
+                    )}
+                />
+                <button type="submit">submit</button>
+            </GForm>
+        );
+
+        const input = screen.getByTestId('firstName') as HTMLInputElement;
+
+        // initial value 'asd' settles invalid → form blocked with the async error
+        await waitFor(() => expect(screen.getByTestId('err')).toHaveTextContent('must include !'));
+
+        // type a valid value and wait for the async to clear the error
+        fireEvent.change(input, {target: {value: 'asd!'}});
+        await waitFor(() => expect(screen.queryByTestId('err')).toBeNull());
+
+        // clicking submit blurs the focused input first — this must NOT re-invalidate the field
+        fireEvent.blur(input);
+        expect(screen.queryByTestId('err')).toBeNull(); // guard: no optimistic re-block
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).toHaveBeenCalledTimes(1); // fires on the FIRST submit, not the second
+    });
+});

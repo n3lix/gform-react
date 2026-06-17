@@ -19,26 +19,29 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         if (!input) return;
 
         const element = e && e.target;
+        const wasTouched = input.touched;
         input.touched = true;
+
+        // For a field with async validators, skip re-validating a value that already has a settled
+        // result. Re-running optimistically sets `error = true` again (cleared a debounce later), so
+        // the blur that fires when the user clicks submit would re-invalidate the field at the exact
+        // instant of submission - silently swallowing the first submit until the async re-resolves.
+        // `_validatedValue` is the value the last pass settled on; an unchanged value needs no re-check.
+        const _asyncValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        if (_asyncValidator?.asyncHandlers.length) {
+            if (input._validatedValue !== undefined && Object.is(input.value, input._validatedValue)) {
+                if (!wasTouched) _dispatchChanges(input, input.formKey); // still propagate the one-time touched flip
+                return;
+            }
+            input._validatedValue = input.value;
+        }
 
         if (typeof document !== 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
             if (!input.checkValidity) input.checkValidity = () => element.checkValidity();
 
             const hasInitialValue = !input.dirty && input.value;
 
-            if (hasInitialValue) {  //if the field has an initial value
-                /**
-                 * for inputs with initial value we have to manually check for validations.
-                 * validity.tooShort is false even though the initial value is smaller than minLength, because its required to be filled in by user (native dirty flag is true).
-                 * it only works for validity.valueMissing.
-                 * If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
-                 * @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
-                 */
-                const {validityKey} = _checkInputManually(input);
-                if (validityKey) {
-                    element.setCustomValidity(validityKey); //reset any previous error (custom)
-                }
-                _dispatchChanges(input, input.formKey);
+            if (hasInitialValue) {
                 return;
             }
             element.setCustomValidity(''); //reset any previous error (custom)
@@ -155,14 +158,16 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
 
         if (__DEV__) {
-            if (validityKey && !inputValidator?.hasConstraint(validityKey)) {
-                if (validityKey === 'typeMismatch') {
-                    if (!inputValidator?.handlers.length)
-                        console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' or '${handlersMap[validityMap.patternMismatch]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\nif you added one of these validators then the input is still suffering from '${validityKey}' violation.\n`);
-                    else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing or not satisfies the native constraint.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\n\nif you already have a Custom Validation then the input is still not satisfies the native type pattern.\neither enforce it or remove the constraint '${validityMap[validityKey]}' from the input props`);
+            if (validityKey) {
+                if (validityKey in validityMap && !inputValidator?.hasConstraint(validityKey)) {
+                    if (validityKey === 'typeMismatch') {
+                        if (!inputValidator?.handlers.length)
+                            console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' or '${handlersMap[validityMap.patternMismatch]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\nif you added one of these validators then the input is still suffering from '${validityKey}' violation.\n`);
+                        else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing or not satisfies the native constraint.\nadd '${handlersMap[validityMap[validityKey]]}' or 'withCustomValidation' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().withTypeMismatchMessage('pattern mismatch'),\n\t...\n}\n\nif you already have a Custom Validation then the input is still not satisfies the native type pattern.\neither enforce it or remove the constraint '${validityMap[validityKey]}' from the input props`);
+                    }
+                    else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().${handlersMap[validityMap[validityKey]]}(...),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
+                    console.warn(`form submition is prevented due to violation(s) of input '${input.formKey}': violation '${validityKey}' caused by '${validityMap[validityKey]}' property.\n(<Ginput formKey={'${input.formKey}'} ${validityMap[validityKey]}={...} />)`);
                 }
-                else console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().${handlersMap[validityMap[validityKey]]}(...),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
-                console.warn(`form submition is prevented due to violation(s) of input '${input.formKey}': violation '${validityKey}' caused by '${validityMap[validityKey]}' property.\n(<Ginput formKey={'${input.formKey}'} ${validityMap[validityKey]}={...} />)`);
             }
         }
 
@@ -242,10 +247,21 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
      * browser blocks submitting an invalid initial value. This matters because the browser
      * doesn't natively flag initial values (e.g. a value shorter than `minLength` is only
      * `tooShort` once the user edits it) — without it the form would submit/refresh.
+     *
+     *  for inputs with initial value we have to manually check for validations.
+     *  validity.tooShort is false even though the initial value is smaller than minLength, because its required to be filled in by user (native dirty flag is true).
+     *  it only works for validity.valueMissing.
+     *  If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
+     *  @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
      */
     const _validateInitialField = (input: GInputState<any>, key: string, element?: GDOMElement): void => {
         const before = {error: input.error, errorText: input.errorText};
         _checkInputManually(input);
+
+        // Record the settled value for async fields so the first post-edit blur (e.g. clicking
+        // submit) doesn't re-run the async validator and re-arm its optimistic `error` flag.
+        const _asyncValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        if (_asyncValidator?.asyncHandlers.length) input._validatedValue = input.value;
 
         if (element) {
             element.setCustomValidity(input.error ? (input.errorText || 'invalid') : '');
