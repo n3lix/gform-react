@@ -10,6 +10,10 @@ import type {GValidators} from "./validations";
 
 type FormRendererProps<T> = GFormProps<T> & { formRef: RefObject<HTMLFormElement|null> };
 
+if (__DEV__) {
+    var _warnedOptimizedDefault = false;
+}
+
 const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
     <T, >({
         stateRef,
@@ -24,7 +28,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
         formRef,
         ...rest
     }: FormRendererProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
-        const {handlers, getState} = useFormStore();
+        const {handlers, getState, optimized} = useFormStore();
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const formComponent = useMemo(() => {
@@ -60,7 +64,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
 
             if (stateRef) stateRef.current = state;
 
-            if (handlers.optimized) {
+            if (optimized) {
                 if (onChange) {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
                         handlers._updateInputHandler(state[e.target.name as keyof T], e, unknown);
@@ -114,6 +118,11 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
 
             if (__DEV__ && !_hasSubmitter(formRef.current)) {
                 console.warn(`DEV ONLY - [No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
+            }
+
+            if (__DEV__ && !optimized && !_warnedOptimizedDefault) {
+                _warnedOptimizedDefault = true;
+                console.warn(`DEV ONLY - [Optimized Default Changing] - this <GForm> is not using 'optimized'. In a future release forms will be optimized (change/blur/invalid delegated to the <form>) by default.\nTo adopt the new behavior now and silence this notice, pass 'optimized' to <GForm>:\n<GForm optimized ...>\n`);
             }
 
             if (onInit) {

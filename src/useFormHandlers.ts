@@ -9,7 +9,7 @@ function _checkValidityFromError(this: GInputState<any>): boolean {
     return !this.error;
 }
 
-export const useFormHandlers = (getState: Store['getState'], setState: Store['setState'], validators: GValidators = {}, optimized = false) => {
+export const useFormHandlers = (getState: Store['getState'], setState: Store['setState'], validators: GValidators = {}) => {
     /**
      * handler for validating a form input
      * @param input the input to be validated
@@ -339,5 +339,5 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
     };
 
-    return {_updateInputHandler, _viHandler, _blurHandler, _dispatchChanges, _dispatchAndValidate, _checkConstraints, _validateInitialField, _resetForm, _seedInitial, optimized, _createInputChecker: _checkInputManually};
+    return {_updateInputHandler, _viHandler, _blurHandler, _dispatchChanges, _dispatchAndValidate, _checkConstraints, _validateInitialField, _resetForm, _seedInitial, _createInputChecker: _checkInputManually};
 };

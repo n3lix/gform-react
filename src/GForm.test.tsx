@@ -222,7 +222,7 @@ describe('GForm optimized mode', () => {
         const onSubmit = jest.fn();
         render(
             <GForm optimized onSubmit={onSubmit}>
-                <GInput formKey="name" optimized data-testid="i"/>
+                <GInput formKey="name" data-testid="i"/>
                 <button type="submit">Submit</button>
             </GForm>
         );
@@ -241,11 +241,11 @@ describe('GForm optimized mode', () => {
         let renders = 0;
         render(
             <GForm optimized validators={{ validated: new GValidator().withRequiredMessage('required field') }}>
-                <GInput formKey="plain" optimized element={(input, props) => {
+                <GInput formKey="plain" element={(input, props) => {
                     renders++;
                     return <input {...props} data-testid="plain"/>;
                 }}/>
-                <GInput formKey="validated" optimized required element={(input, props) => (
+                <GInput formKey="validated" required element={(input, props) => (
                     <div>
                         <input {...props} data-testid="validated"/>
                         {input.error && <span data-testid="err">{input.errorText}</span>}

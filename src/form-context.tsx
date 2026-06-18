@@ -21,7 +21,7 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
     children,
     initialState,
     validators,
-    optimized,
+    optimized = false,
     formRef
 }) => {
     const stateRef = useRef(initialState);
@@ -40,7 +40,7 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
         listeners.current!.forEach((listener) => listener());
     }, []);
 
-    const handlers = useFormHandlers(() => stateRef.current, setState, validators, optimized);
+    const handlers = useFormHandlers(() => stateRef.current, setState, validators);
 
     const getInputElement = useCallback((formKey: string) => {
         if (!formRef || !formRef.current) return;
@@ -153,9 +153,10 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
             handlers,
             registerField,
             unregisterField,
-            getInputElement
+            getInputElement,
+            optimized
         };
-    }, [initialState]);
+    }, [initialState, optimized]);
 
     return <GFormContext.Provider value={store}>{children}</GFormContext.Provider>;
 };

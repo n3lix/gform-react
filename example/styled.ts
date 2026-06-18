@@ -1,4 +1,3 @@
-import { FormControl } from '@mui/material';
 import styled from '@emotion/styled';
 
 export const SCSS_Container = styled('div')`
@@ -49,10 +48,4 @@ export const SCSS_Box = styled('div')`
     h3 {
         text-align: center;
     }
-`;
-
-export const SCSS_FormConrol = styled(FormControl)`
-margin-bottom: 1rem;
-width: 100%;
-
 `;

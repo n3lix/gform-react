@@ -103,7 +103,6 @@ export type GInputProps = BaseGenericFieldProps & Omit<InputHTMLAttributes<HTMLI
      * @default 300
      * */
     debounce?: number;
-    optimized?: boolean;
 } & ({
         type?: 'text' | 'password' | 'email' | 'tel' | 'url' | 'search';
         minLength?: number;

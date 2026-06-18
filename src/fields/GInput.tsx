@@ -5,11 +5,7 @@ import type {GInputProps, GInputState, GElementProps} from '.';
 import {useFormSelector, useFormStore} from "../form-context";
 import {makeSelectFields} from "../selectors";
 
-// Stable no-op handler. In optimized mode the input has no real onChange (change is delegated
-// to the <form>), but a controlled input still needs *some* onChange or React warns
-// ("You provided a `value` prop ... without an `onChange` handler"). A shared no-op silences
-// that warning with zero per-input closure cost; the form's delegated onChange does the work.
-const _noop = () => { /* delegated to the form */ };
+const _noop = () => { /* noop */ };
 
 const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
     const store = useFormStore();
@@ -21,7 +17,6 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
         type = 'text',
         fetch,
         fetchDeps,
-        optimized,
         debounce = 300,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         defaultChecked,
@@ -83,7 +78,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
             title: title || inputState.errorText
         };
 
-        if (!store.handlers.optimized || !optimized) {
+        if (!store.optimized) {
             _props.onBlur = rest.onBlur ?
                 (e) => {
                     store.handlers._blurHandler(inputState, e);
