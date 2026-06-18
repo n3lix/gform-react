@@ -1,6 +1,6 @@
 {
   "name": "gform-react",
-  "version": "3.0.2",
+  "version": "3.1.0",
   "description": "Build generic forms with validations for React-based applications",
   "author": "Tal Maman, Arkady Birko",
   "license": "MIT",

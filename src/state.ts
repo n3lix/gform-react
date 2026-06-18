@@ -55,4 +55,5 @@ export type Store = {
     registerField: (config: GInputProps | RNGInputProps) => void;
     unregisterField: (formKey: string) => void;
     getInputElement: (formKey: string) => GDOMElement | undefined;
+    optimized: boolean;
 }

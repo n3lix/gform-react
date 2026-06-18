@@ -1,4 +1,4 @@
-import React, {useCallback, useRef, useState} from "react";
+import React, {useCallback, useRef} from "react";
 import Tabs from "../tabs/Tabs";
 import {Tab} from "../tabs";
 import {GForm} from "../../src/GForm";
@@ -15,7 +15,7 @@ const Test = () => {
 };
 
 const values = {
-    firstName: 'John',
+    firstName: '',
     lastName: 'Doe',
     email: 'test@test.com',
     phone: '1234567890',
@@ -89,7 +89,8 @@ const BaseExample = () => {
                 </GForm>
             </Tab>
             <Tab index={1} header={<button>Phone</button>}>
-                <GForm onSubmit={(state, e) => {
+                <GForm validators={validators} optimized onSubmit={(state, e) => {
+                    e.preventDefault();
                     console.log(state);
                 }}>
                     {/*<GInput formKey={'phone'}*/}
