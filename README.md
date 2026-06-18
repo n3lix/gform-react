@@ -3,32 +3,13 @@
         <img src="https://gform-react.vercel.app/gform-logo.png" alt="gform-react logo" />
     </a>
     <h1>gform-react</h1>
-    <p>A lightweight React form library built for <b>performance</b>, <b>validation</b>, and clean <b>form logic</b></p>
-</div>
-
-## Features
-
-- **Lightweight – no dependencies**
-- **Tree‑shakable** — import only what you use to keep bundles small
-- **Minimal re-renders** — updates only the fields that actually change
-- **Native HTML constraint validation** — full support for `min`, `max`, `pattern`, `minLength`, `maxLength`, `required`, and more
-- **Custom Validations** – add custom validation with any rules
-- **Async Validations** — run asynchronous rules for server-side checks
-- **Supports Yup, Zod, and more** – use any validation library you like
-- **Deeply Nested Forms** — structure forms however you like, across any number of components
-- **Dynamic fields** — add or remove fields at runtime without losing state
-- **Native `<form>` actions** — fully supports browser‑level form submission, including action, method, and HTTP navigation, with no JavaScript required
-- **Next.js Server Actions support** — works seamlessly with Server Actions through standard `<form>` submissions, with no special adapters or client‑side wiring
-- **Accessibility‑friendly** — automatically manages `aria-required` and `aria-invalid`
-- **File inputs** — `type="file"` stores the real `File` object (or `File[]` with `multiple`), not the `C:\fakepath\...` string
-- **React Native support** — works seamlessly across web and mobile
- 
+    <p><b>Performant, lightweight, Type-safe React forms</b> that work the same on the web, with native action and <b>Next.js Server Actions</b>, and in <b>React Native</b> - no adapters, no casts, zero dependencies.</p>
 <br/>
 <div align="center">
   <a href="https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js">
     <img src="http://img.badgesize.io/https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js?compression=gzip&style=for-the-badge" alt="Minified size">
   </a>
-  
+
   <img src="https://img.shields.io/npm/dt/gform-react.svg?style=for-the-badge" alt="React DOM peer dependency">
   <img src="https://img.shields.io/npm/dm/gform-react?style=for-the-badge" alt="npm downloads">
 </div>
@@ -42,6 +23,29 @@
   </a>
 </div>
 <br/>
+<div><a href="https://gform-react.vercel.app">Home</a> | <a href="https://gform-react.vercel.app/docs">Docs</a> | <a href="https://gform-react.vercel.app/docs/guides">Guides</a> | <a href="https://gform-react.vercel.app/docs/examples">Examples</a></div>
+</div>
+
+## Features
+
+- **Lightweight – no dependencies**
+- **Tree‑shakable** — import only what you use to keep bundles small
+- **Minimal re-renders** — updates only the fields that actually change
+- **Native HTML constraint validation** — full support for `min`, `max`, `pattern`, `minLength`, `maxLength`,
+  `required`, and more
+- **Custom Validations** – add custom validation with any rules
+- **Async Validations** — run asynchronous rules for server-side checks
+- **Supports Yup, Zod, and more** – use any validation library you like
+- **Deeply Nested Forms** — structure forms however you like, across any number of components
+- **Dynamic fields** — add or remove fields at runtime without losing state
+- **Native `<form>` actions** — fully supports browser‑level form submission, including action, method, and HTTP
+  navigation, with no JavaScript required
+- **Next.js Server Actions support** — works seamlessly with Server Actions through standard `<form>` submissions, with
+  no special adapters or client‑side wiring
+- **Accessibility‑friendly** — automatically manages `aria-required` and `aria-invalid`
+- **File inputs** — `type="file"` stores the real `File` object (or `File[]` with `multiple`), not the `C:\fakepath\...`
+  string
+- **React Native support** — works seamlessly across web and mobile
 
 ## Documentation
 
@@ -50,62 +54,67 @@ Full documentation, examples, and API reference:
 https://gform-react.vercel.app
 
 ## QuickStart
+
 ```tsx
+import {type FC} from "react";
 import {GForm, GInput, GValidator, type GValidators} from "gform-react";
 
 interface SignInForm {
-  username: string;
-  password: string;
+    username: string;
+    password: string;
 }
 
 const baseValidator = new GValidator().withRequiredMessage('this field is required');
 
 const validators: GValidators<SignInForm> = {
-  '*': baseValidator, // a default validator for all other fields in the form
+    '*': baseValidator, // a default validator for all other fields in the form
 
-  password: new GValidator(baseValidator)
-          .withMinLengthMessage((input) => `${input.formKey} must contain atleast ${input.minLength} chars`),
+    password: new GValidator(baseValidator)
+        .withMinLengthMessage((input) => `${input.formKey} must contain atleast ${input.minLength} chars`),
 };
 
 const App: FC = () => {
     return (
-            <GForm<SignInForm> className='some-class'
-                               validators={validators}
-                               onSubmit={(formState, e) => { //can be used with native `action` or with Next.js `server actions`
-                                    e.preventDefault();
-                                    const data = formState.toRawData(); // key-value pairs of the form input values
-                                    console.log(data);
-                               }}>
-                <GInput formKey='username'
-                        required
-                        element={(input, props) => <div>
-                            <input {...props} placeholder='username'/>
-                            {input.error && <small className="p-error">{input.errorText}</small>}
-                        </div>}
-                />
-                <GInput formKey='password' 
-                        type='password'
-                        required
-                        minLength={5}
-                        element={(input, props) => <div>
-                            <input {...props} placeholder='password'/>
-                            {input.error && <small className="p-error">{input.errorText}</small>}
-                        </div>}
-                />
-                <button>Submit</button>
-            </GForm>
+        <GForm<SignInForm> className='some-class'
+                           validators={validators}
+                           onSubmit={(formState, e) => { //can be used with native `action` or with Next.js `server actions`
+                               e.preventDefault();
+                               const data = formState.toRawData(); // key-value pairs of the form input values
+                               console.log(data);
+                           }}>
+            <GInput formKey='username'
+                    required
+                    element={(input, props) => <div>
+                        <input {...props} placeholder='username'/>
+                        {input.error && <small className="p-error">{input.errorText}</small>}
+                    </div>}
+            />
+            <GInput formKey='password'
+                    type='password'
+                    required
+                    minLength={5}
+                    element={(input, props) => <div>
+                        <input {...props} placeholder='password'/>
+                        {input.error && <small className="p-error">{input.errorText}</small>}
+                    </div>}
+            />
+            <button>Submit</button>
+        </GForm>
     );
 };
 ```
 
 ## File inputs
 
-`GInput` with `type="file"` stores the selected **`File` object** in form state — not the browser's `C:\fakepath\...` string. File inputs are intentionally **uncontrolled** (the DOM owns the `FileList`), so you don't pass a `value`; the current selection is reflected into state on change.
+`GInput` with `type="file"` stores the selected **`File` object** in form state — not the browser's `C:\fakepath\...`
+string. File inputs are intentionally **uncontrolled** (the DOM owns the `FileList`), so you don't pass a `value`; the
+current selection is reflected into state on change.
 
 - Single file → `state.<key>.value` is `File | null`
 - With `multiple` → `state.<key>.value` is `File[]`
 
 ```tsx
+import {type FC} from "react";
 import {GForm, GInput, GValidator, type GValidators} from "gform-react";
 
 interface CvForm {
@@ -146,7 +155,8 @@ const UploadForm: FC = () => {
 };
 ```
 
-> For multiple files, add the native `multiple` attribute; `input.value` becomes a `File[]`. `formState.toFormData()` includes file fields automatically via the underlying `<form>`.
+> For multiple files, add the native `multiple` attribute; `input.value` becomes a `File[]`. `formState.toFormData()`
+> includes file fields automatically via the underlying `<form>`.
 
 ## Installation
 
@@ -163,6 +173,7 @@ yarn add gform-react
 ```
 
 ## Peer dependencies
+
 react >=18.0.0, react-dom >=18.0.0 are peer dependencies (the library is built on
 `useSyncExternalStore`, which was introduced in React 18)
 
