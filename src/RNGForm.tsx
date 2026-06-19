@@ -2,7 +2,8 @@ import {useMemo, useEffect, forwardRef} from "react";
 import type {ReactNode, FC, ReactElement, Ref, RefObject} from "react";
 
 import {_merge, _buildRNFormState} from "./helpers";
-import {GFormContextProvider, useFormSelector, useFormStore} from "./form-context";
+import {GFormContextProvider, useFormStore} from "./form-context";
+import {useFormSelector} from "./hooks";
 import type {RNGFormState} from "./state";
 import type {GValidators} from "./validations";
 import type {IForm, PartialForm} from "./form";
@@ -20,7 +21,7 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const formComponent = useMemo(() => {
-            const state = _buildRNFormState(fields, handlers._dispatchChanges);
+            const state = _buildRNFormState(fields, handlers._dispatchChanges, handlers._dispatchAndValidate);
 
             if (stateRef) stateRef.current = state;
             const formChildren = typeof children === 'function' ? children(state) : children;
@@ -34,7 +35,7 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
 
         useEffect(() => {
             const initialStateFields = getState<T>().fields;
-            const state = _buildRNFormState(initialStateFields, handlers._dispatchChanges);
+            const state = _buildRNFormState(initialStateFields, handlers._dispatchChanges, handlers._dispatchAndValidate);
 
             if (onInit) {
                 const changes = onInit(state);

@@ -32,8 +32,8 @@ if (__DEV__) {
  * const baseValidator = new GValidator().withRequiredMessage('this field is required');
  *
  * const validators: GValidators<SignInForm> = {
- *     username: new GValidator(baseValidator).withMinLengthMessage('...'),
- *     '*': baseValidator // a default validator for all other fields in the form
+ *     '*': baseValidator, // a default validator for all other fields in the form
+ *     username: new GValidator(baseValidator).withMinLengthMessage('...')
  * };
  */
 export class GValidator<T = any> {

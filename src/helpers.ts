@@ -272,7 +272,7 @@ export const _mergeRefs = <T>(
     };
 };
 
-export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElement: HTMLFormElement, dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void) => {
+export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElement: HTMLFormElement, dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void, dispatchAndValidate: (changes: Partial<GInputState<any>>, key: string) => void) => {
     const isFormValid = _checkIfFormIsValid(fields);
 
     const formState: GFormState<T> = {
@@ -289,17 +289,13 @@ export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElemen
         },
         dispatchChanges: (changes: PartialForm<T> & {
             [key: string]: Partial<GInputState<any>>
-        }) => dispatchChanges({
-            fields: _merge<IForm<T> & {
-                [key: string]: GInputState;
-            }>({}, fields, changes)
-        })
+        }, options?: { validate?: boolean }) => _formDispatch(fields, dispatchChanges, dispatchAndValidate, changes, options)
     };
 
     return formState;
 };
 
-export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void) => {
+export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void, dispatchAndValidate: (changes: Partial<GInputState<any>>, key: string) => void) => {
     const isFormValid = _checkIfFormIsValid(fields);
 
     const formState: RNGFormState<T> = {
@@ -319,14 +315,31 @@ export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], dispatch
         },
         dispatchChanges: (changes: PartialForm<T> & {
             [key: string]: Partial<GInputState<any>>
-        }) => dispatchChanges({
-            fields: _merge<IForm<T> & {
-                [key: string]: GInputState;
-            }>({}, fields, changes)
-        })
+        }, options?: { validate?: boolean }) => _formDispatch(fields, dispatchChanges, dispatchAndValidate, changes, options)
     };
 
     return formState;
+};
+
+const _formDispatch = <T>(
+    fields: InitialState<T>['fields'],
+    dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void,
+    dispatchAndValidate: (changes: Partial<GInputState<any>>, key: string) => void,
+    changes: PartialForm<T> & { [key: string]: Partial<GInputState<any>> },
+    options?: { validate?: boolean }
+): void => {
+    if (options?.validate) {
+        for (const key in changes) {
+            dispatchAndValidate(changes[key], key);
+        }
+        return;
+    }
+
+    dispatchChanges({
+        fields: _merge<IForm<T> & {
+            [key: string]: GInputState;
+        }>({}, fields, changes)
+    });
 };
 
 /**
@@ -349,3 +362,17 @@ export const _manualValidityKey = (input: GInputState<any>): keyof ValidityState
     if (min && Number(value) < Number(min)) return 'rangeUnderflow';
     if (max && Number(value) > Number(max)) return 'rangeOverflow';
 };
+
+const _depsReplacer = (_key: string, value: unknown) => {
+    if (typeof File !== 'undefined' && value instanceof File) {
+        return `File:${value.name}:${value.size}:${value.lastModified}:${value.type}`;
+    }
+    if (typeof value === 'bigint') return `${value}n`;
+    return value;
+};
+
+export const _makeSelectFields = (keys: string[] = []) =>
+    (state: InitialState): string | null => {
+        const selected = keys.map((key) => JSON.stringify(state.fields[key]?.value, _depsReplacer)).join(', ');
+        return selected.length ? selected : null;
+    };

@@ -1,9 +1,9 @@
 import {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 import {TextInput} from 'react-native';
 
-import {_debounce} from '../helpers';
-import {useFormSelector, useFormStore} from "../form-context";
-import {makeSelectFields} from "../selectors";
+import {_debounce, _makeSelectFields} from '../helpers';
+import {useFormStore} from "../form-context";
+import {useFormSelector} from "../hooks";
 import type {GInputState, RNGInputProps} from '.';
 
 const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
@@ -32,7 +32,7 @@ const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
     }
 
     const inputState = useFormSelector(state => state.fields[formKey]);
-    const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
+    const _fetchDeps = useFormSelector(_makeSelectFields(fetchDeps));
 
     useEffect(() => {
         // constraint errors for initial values are baked at registration; this runs

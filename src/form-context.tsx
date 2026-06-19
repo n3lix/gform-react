@@ -1,4 +1,4 @@
-import React, {createContext, useCallback, useContext, useMemo, useRef, useSyncExternalStore} from 'react';
+import React, {createContext, useCallback, useContext, useMemo, useRef} from 'react';
 import type {FC, PropsWithChildren, RefObject} from 'react';
 
 import {useFormHandlers} from "./useFormHandlers";
@@ -166,14 +166,4 @@ export const useFormStore = () => {
     if (!store.getState) throw new Error('useFormStore must be used within `GForm` component');
 
     return store;
-};
-
-export const useFormSelector = <T extends any>(selector: (state: InitialState) => T): T => {
-    const store = useFormStore();
-
-    return useSyncExternalStore(
-        store.subscribe,
-        () => selector(store.getState()),
-        () => selector(store.getState()) // for SSR
-    );
 };
