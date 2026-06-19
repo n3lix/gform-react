@@ -1,9 +1,9 @@
 import React, {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
 
-import {_debounce} from '../helpers';
+import {_debounce, _makeSelectFields} from '../helpers';
+import {useFormStore} from "../form-context";
+import {useFormSelector} from "../hooks";
 import type {GInputProps, GInputState, GElementProps} from '.';
-import {useFormSelector, useFormStore} from "../form-context";
-import {makeSelectFields} from "../selectors";
 
 const _noop = () => { /* noop */ };
 
@@ -38,7 +38,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
     }
 
     const inputState = useFormSelector(state => state.fields[formKey]);
-    const _fetchDeps = useFormSelector(makeSelectFields(fetchDeps));
+    const _fetchDeps = useFormSelector(_makeSelectFields(fetchDeps));
 
     useEffect(() => {
         // constraint errors for initial values are baked at registration; this runs

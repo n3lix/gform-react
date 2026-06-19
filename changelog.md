@@ -1,3 +1,6 @@
+## 3.2.0
+* **Form-level `dispatchChanges` accepts `{ validate: true }`** - `state.dispatchChanges(changes, { validate: true })` now re-runs each changed field's validators against its merged value, mirroring the field-level `dispatchChanges(changes, { validate })`. Applies to web and React Native (`RNGFormState`)
+
 ## 3.1.0
 * **Dev-only notice for the upcoming default change** — a non-optimized `<GForm>` now logs a one-time (per session) `__DEV__` warning that forms will be optimized (event-delegated) by default in a future release. Pass `optimized` to adopt the new behavior now and silence the notice. Stripped from production builds
 * **Removed the field-level `optimized` prop** - `optimized` is now a form-level concern only (`<GForm optimized>`). The prop on `GInput` was a no-op on its own and is dropped from `GInputProps`. Optimization (delegating change/blur/invalid to the `<form>`) is enabled by the form, and every field in an optimized form is delegated — previously a field also had to opt in, which could leave a field wiring its own handlers *and* receiving the form's delegated ones (double dispatch).

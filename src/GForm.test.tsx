@@ -293,6 +293,60 @@ describe('GForm dispatchChanges (form-level)', () => {
         expect((screen.getByTestId('a') as HTMLInputElement).value).toBe('x');
         expect((screen.getByTestId('b') as HTMLInputElement).value).toBe('y');
     });
+
+    it('re-validates changed fields and clears a stale error with { validate: true }', () => {
+        const validators = { '*': new GValidator().withRequiredMessage('Required') };
+        let latest: GFormState<{ name: string }> | undefined;
+        render(
+            <GForm<{ name: string }> validators={validators}>
+                {(state) => {
+                    latest = state;
+                    return <GInput formKey="name" required/>;
+                }}
+            </GForm>
+        );
+
+        // arrive at a stale error: clear + validate surfaces the required rule
+        act(() => {
+            latest!.name.dispatchChanges({ value: '' }, { validate: true });
+        });
+        expect(latest!.name.error).toBe(true);
+        expect(latest!.name.errorText).toBe('Required');
+
+        // form-level autofill WITH validate re-runs the rule against the new value -> error clears
+        act(() => {
+            latest!.dispatchChanges({ name: { value: 'Ada' } }, { validate: true });
+        });
+        expect(latest!.name.value).toBe('Ada');
+        expect(latest!.name.error).toBe(false);
+        expect(latest!.name.errorText).toBe('');
+        expect(latest!.isValid).toBe(true);
+    });
+
+    it('without the option, merges only and leaves a stale error untouched (contract)', () => {
+        const validators = { '*': new GValidator().withRequiredMessage('Required') };
+        let latest: GFormState<{ name: string }> | undefined;
+        render(
+            <GForm<{ name: string }> validators={validators}>
+                {(state) => {
+                    latest = state;
+                    return <GInput formKey="name" required/>;
+                }}
+            </GForm>
+        );
+
+        act(() => {
+            latest!.name.dispatchChanges({ value: '' }, { validate: true });
+        });
+        expect(latest!.name.error).toBe(true);
+
+        // merge-only: the value updates but the stale error is deliberately left in place
+        act(() => {
+            latest!.dispatchChanges({ name: { value: 'Ada' } });
+        });
+        expect(latest!.name.value).toBe('Ada');
+        expect(latest!.name.error).toBe(true);
+    });
 });
 
 describe('GForm native reset', () => {

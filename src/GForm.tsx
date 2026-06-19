@@ -1,8 +1,9 @@
 import React, {forwardRef, useEffect, useMemo, useRef} from "react";
 import type {ForwardedRef, Ref, ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
-import {useFormSelector, GFormContextProvider, useFormStore} from "./form-context";
+import {GFormContextProvider, useFormStore} from "./form-context";
 import {_merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
+import {useFormSelector} from "./hooks";
 import type {GFormState} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
 import type {GInputState} from "./fields";
@@ -32,11 +33,11 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const formComponent = useMemo(() => {
-            const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges);
+            const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
             const formChildren = typeof children === 'function' ? children(state) : children;
 
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
-                const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges);
+                const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
                 if (state.isValid && onSubmit) {
                     onSubmit(state, e);
                 }
@@ -114,7 +115,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
 
         useEffect(() => {
             const initialStateFields = getState<T>().fields;
-            const state = _buildFormState<T>(initialStateFields, formRef.current!, handlers._dispatchChanges);
+            const state = _buildFormState<T>(initialStateFields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
 
             if (__DEV__ && !_hasSubmitter(formRef.current)) {
                 console.warn(`DEV ONLY - [No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);

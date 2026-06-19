@@ -4,15 +4,8 @@ import {Tab} from "../tabs";
 import {GForm} from "../../src/GForm";
 import {SignUpForm, validators} from "../validators";
 import {GInput} from "../../src/fields/GInput";
-import {useFormSelector} from "../../src/form-context";
 import TestForm from "./TestForm";
 import {GInputState, GElementProps} from '../../src/fields';
-
-const Test = () => {
-    const city = useFormSelector(state => state.fields.city);
-    // console.log(city);
-    return (<div>test!!!!!!!</div>);
-};
 
 const values = {
     firstName: '',
@@ -40,7 +33,7 @@ const BaseExample = () => {
                 <GForm<SignUpForm> ref={ref} validators={validators}
                                    onSubmit={(state, e) => {
                                        e.preventDefault();
-                                       console.log(state);
+                                       console.log(state.toRawData({}));
                                    }}>
                     <GInput formKey={'firstName'}
                             id="firstName"
