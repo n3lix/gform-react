@@ -20,7 +20,6 @@ const BaseExample = () => {
     const ref = useRef<HTMLFormElement>(null);
 
     const renderInput = useCallback((input: GInputState, props: GElementProps<any>) => {
-        console.log(input);
         return <div>
             <input {...props} />
             {input.error && <small>{input.errorText}</small>}
@@ -33,7 +32,7 @@ const BaseExample = () => {
                 <GForm<SignUpForm> ref={ref} validators={validators}
                                    onSubmit={(state, e) => {
                                        e.preventDefault();
-                                       console.log(state.toRawData({}));
+                                       console.log(Array.from(state.toFormData({include: ['lastName']}).keys()).toString());
                                    }}>
                     <GInput formKey={'firstName'}
                             id="firstName"

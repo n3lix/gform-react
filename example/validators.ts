@@ -6,7 +6,7 @@ export interface SignUpForm {
     lastName: string;
     phoneNumber: string;
     password: string;
-    confirmPassword: string;
+    confirm: string;
     termsOfUse: boolean;
     city: string;
 }
@@ -36,11 +36,6 @@ export const validators: GValidators<SignUpForm> = {
         .withCustomValidation((input) => {
             input.errorText = `${input.formKey} must contain special char`;
             return /[^a-zA-Z0-9]+/;
-        })
-        .withCustomValidation((input, fields) => {
-            fields.confirmPassword.checkValidity?.(); //update the validation state on both inputs
-            input.errorText = `the password and confirm password doesnt match`;
-            return fields.confirmPassword.value !== fields.password.value;
         }),
     // .withCustomValidationAsync(async input => {
     //     console.log('checking');
@@ -50,11 +45,10 @@ export const validators: GValidators<SignUpForm> = {
     //     input.errorText ='there was an error';
     //     return res.length === 0;
     // }),
-    confirmPassword: new GValidator(baseValidations)
+    confirm: new GValidator(baseValidations)
         .withCustomValidation((input, fields) => {
-            fields.password.checkValidity?.();
             input.errorText = `the password and confirm password doesnt match`;
-            return fields.confirmPassword.value !== fields.password.value;
+            return input.value !== fields.password.value;
         }),
     phoneNumber: new GValidator(baseValidations)
         .withCustomValidation((input) => {
