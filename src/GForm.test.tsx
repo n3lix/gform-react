@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { GForm } from './GForm';
 import { GInput } from './fields/GInput';
 import { GValidator } from './validations';
+import type { GValidators } from './validations';
 import type { GFormState } from './state';
 
 describe('GForm', () => {
@@ -122,6 +123,64 @@ describe('GForm serialization', () => {
         const params = setup()().toURLSearchParams();
         expect(params.get('first')).toBe('Ada');
         expect(params.get('last')).toBe('Lovelace');
+    });
+
+    it('toRawData honors include / exclude / transform', () => {
+        const getState = setup();
+
+        expect(getState().toRawData({include: ['first']})).toEqual({first: 'Ada'});
+        expect(getState().toRawData({exclude: ['last']})).toEqual({first: 'Ada'});
+        expect(getState().toRawData({transform: {first: (v) => v.toUpperCase()}}))
+            .toEqual({first: 'ADA', last: 'Lovelace'});
+    });
+
+    it('toFormData honors include / exclude / transform', () => {
+        const getState = setup();
+
+        const included = getState().toFormData({include: ['first']});
+        expect(included.get('first')).toBe('Ada');
+        expect(included.get('last')).toBeNull();
+
+        const excluded = getState().toFormData({exclude: ['last']});
+        expect(excluded.get('first')).toBe('Ada');
+        expect(excluded.get('last')).toBeNull();
+
+        const transformed = getState().toFormData({transform: {first: (v) => v.toUpperCase()}});
+        expect(transformed.get('first')).toBe('ADA');
+        expect(transformed.get('last')).toBe('Lovelace');
+    });
+
+    it('toURLSearchParams honors include / exclude / transform', () => {
+        const getState = setup();
+
+        const included = getState().toURLSearchParams({include: ['first']});
+        expect(included.get('first')).toBe('Ada');
+        expect(included.get('last')).toBeNull();
+
+        const excluded = getState().toURLSearchParams({exclude: ['last']});
+        expect(excluded.get('first')).toBe('Ada');
+        expect(excluded.get('last')).toBeNull();
+
+        const transformed = getState().toURLSearchParams({transform: {first: (v) => v.toUpperCase()}});
+        expect(transformed.get('first')).toBe('ADA');
+        expect(transformed.get('last')).toBe('Lovelace');
+    });
+
+    it('toFormData keeps native checkbox serialization (omit unchecked, "on" when checked)', () => {
+        let latest: GFormState<{agree: boolean}> | undefined;
+        render(
+            <GForm<{agree: boolean}>>
+                {(state) => {
+                    latest = state;
+                    return <GInput formKey="agree" type="checkbox" data-testid="agree"/>;
+                }}
+            </GForm>
+        );
+
+        expect(latest!.toFormData().get('agree')).toBeNull(); // unchecked → omitted, like native
+
+        fireEvent.click(screen.getByTestId('agree'));
+        expect(latest!.toFormData().get('agree')).toBe('on'); // checked → native "on"
     });
 });
 
@@ -479,5 +538,262 @@ describe('GForm async validator submit gating', () => {
 
         fireEvent.submit(screen.getByRole('button'));
         expect(onSubmit).toHaveBeenCalledTimes(1); // fires on the FIRST submit, not the second
+    });
+
+    // The async settled-value guard now lives in `_blurHandler`. Optimized mode delegates blur to
+    // the <form> (which still routes through `_blurHandler`), so the first-submit fix must hold here too.
+    it('submits on the first attempt in optimized mode (delegated blur)', async () => {
+        const onSubmit = jest.fn();
+        const validators = {
+            firstName: new GValidator().withCustomValidationAsync(async (input) => {
+                input.errorText = 'must include !';
+                return !String(input.value).includes('!'); // true => invalid
+            }),
+        };
+
+        render(
+            <GForm
+                optimized
+                validators={validators}
+                onSubmit={(state, e) => { e.preventDefault(); onSubmit(state); }}
+            >
+                <GInput
+                    formKey="firstName"
+                    value="asd"
+                    debounce={20}
+                    element={(input, props) => (
+                        <div>
+                            <input {...props} data-testid="firstName"/>
+                            {input.error && <small data-testid="err">{input.errorText}</small>}
+                        </div>
+                    )}
+                />
+                <button type="submit">submit</button>
+            </GForm>
+        );
+
+        const input = screen.getByTestId('firstName') as HTMLInputElement;
+
+        await waitFor(() => expect(screen.getByTestId('err')).toHaveTextContent('must include !'));
+
+        fireEvent.change(input, {target: {value: 'asd!'}});
+        await waitFor(() => expect(screen.queryByTestId('err')).toBeNull());
+
+        fireEvent.blur(input); // delegated to the <form> → _blurHandler → must not re-block
+        expect(screen.queryByTestId('err')).toBeNull();
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('GForm validatorDeps (cross-field validation)', () => {
+    type PwForm = { password: string; confirm: string };
+
+    const makeValidators = (): GValidators<PwForm> => ({
+        '*': new GValidator().withRequiredMessage('required'),
+        confirm: new GValidator()
+            .withRequiredMessage('required')
+            .withCustomValidation((input, fields) => {
+                if (input.value !== fields.password.value) {
+                    input.errorText = "Passwords don't match";
+                    return true; // invalid
+                }
+                return false; // valid
+            }),
+    });
+
+    const renderForm = (onSubmit = jest.fn()) => {
+        render(
+            <GForm<PwForm> validators={makeValidators()} onSubmit={onSubmit}>
+                <GInput formKey="password" required data-testid="password" />
+                <GInput
+                    formKey="confirm"
+                    required
+                    validatorDeps={['password']}
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="confirm" />
+                            {input.error && <small data-testid="confirm-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+                <button type="submit">Submit</button>
+            </GForm>
+        );
+        return onSubmit;
+    };
+
+    it('re-validates a touched dependent when its dependency changes', () => {
+        const onSubmit = renderForm();
+        const password = screen.getByTestId('password');
+
+        fireEvent.change(password, { target: { value: 'secret1' } });
+        fireEvent.change(screen.getByTestId('confirm'), { target: { value: 'secret1' } });
+
+        // matching → valid → submit goes through, no error shown
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+        expect(screen.queryByTestId('confirm-error')).toBeNull();
+
+        // changing the dependency makes the (untouched-since) confirm stale → must re-validate
+        onSubmit.mockClear();
+        fireEvent.change(password, { target: { value: 'secret2' } });
+
+        expect(screen.getByTestId('confirm-error')).toHaveTextContent("Passwords don't match");
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled(); // invalid dependent blocks submit
+    });
+
+    it('clears a stale mismatch when the dependency catches up (confirm typed first)', () => {
+        renderForm();
+
+        // type confirm first → mismatches the (still empty) password
+        fireEvent.change(screen.getByTestId('confirm'), { target: { value: 'qwe!' } });
+        expect(screen.getByTestId('confirm-error')).toHaveTextContent("Passwords don't match");
+
+        // now type the same into password → confirm must re-validate and clear
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'qwe!' } });
+        expect(screen.queryByTestId('confirm-error')).toBeNull();
+    });
+
+    it('does not surface an error on a dependent the user has not touched', () => {
+        renderForm();
+
+        // only the dependency is edited; confirm was never touched
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'abc' } });
+
+        expect(screen.queryByTestId('confirm-error')).toBeNull();
+    });
+
+    it('syncs native validity so an invalid dependent blocks a native submit', () => {
+        renderForm();
+        const confirm = screen.getByTestId('confirm') as HTMLInputElement;
+
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'secret1' } });
+        fireEvent.change(confirm, { target: { value: 'secret1' } });
+        expect(confirm.validity.customError).toBe(false);
+
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'secret2' } });
+
+        expect(confirm.validity.customError).toBe(true);
+        expect(confirm.validationMessage).toBe("Passwords don't match");
+    });
+
+    it('re-validates an async dependent when its dependency changes (no longer stale)', async () => {
+        const validators: GValidators<PwForm> = {
+            '*': new GValidator().withRequiredMessage('required'),
+            confirm: new GValidator()
+                .withRequiredMessage('required')
+                .withCustomValidationAsync(async (input, fields) => {
+                    input.errorText = "Passwords don't match";
+                    return input.value !== fields.password.value; // true => invalid
+                }),
+        };
+
+        render(
+            <GForm<PwForm> validators={validators}>
+                <GInput formKey="password" required debounce={20}
+                    element={(input, props) => <input {...props} data-testid="password" />}
+                />
+                <GInput formKey="confirm" required validatorDeps={['password']} debounce={20}
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="confirm" />
+                            {input.error && <small data-testid="confirm-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+            </GForm>
+        );
+
+        // match → confirm's async settles valid
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'abc' } });
+        fireEvent.change(screen.getByTestId('confirm'), { target: { value: 'abc' } });
+        await waitFor(() => expect(screen.queryByTestId('confirm-error')).toBeNull());
+
+        // change the dependency → before this refactor confirm stayed stale-valid (the async-skip
+        // short-circuited the unchanged value); now its async re-runs and surfaces the mismatch
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'xyz' } });
+        await waitFor(() => expect(screen.getByTestId('confirm-error')).toHaveTextContent("Passwords don't match"));
+    });
+
+    it('keeps both fields correct when each carries the match rule (mutual deps)', () => {
+        // mirrors the real confirm-password setup where BOTH validators read the other field
+        const validators: GValidators<PwForm> = {
+            '*': new GValidator().withRequiredMessage('required'),
+            password: new GValidator()
+                .withRequiredMessage('required')
+                .withCustomValidation((input, fields) => {
+                    input.errorText = "Passwords don't match";
+                    return input.value !== fields.confirm.value;
+                }),
+            confirm: new GValidator()
+                .withRequiredMessage('required')
+                .withCustomValidation((input, fields) => {
+                    input.errorText = "Passwords don't match";
+                    return input.value !== fields.password.value;
+                }),
+        };
+
+        render(
+            <GForm<PwForm> validators={validators}>
+                <GInput formKey="password" required validatorDeps={['confirm']}
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="password" />
+                            {input.error && <small data-testid="password-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+                <GInput formKey="confirm" required validatorDeps={['password']}
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="confirm" />
+                            {input.error && <small data-testid="confirm-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+            </GForm>
+        );
+
+        // type password first → it mismatches the still-empty confirm and errors
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'asd!' } });
+        expect(screen.getByTestId('password-error')).toBeInTheDocument();
+
+        // typing a matching confirm must clear BOTH (mutual deps re-validate each direction)
+        fireEvent.change(screen.getByTestId('confirm'), { target: { value: 'asd!' } });
+        expect(screen.queryByTestId('password-error')).toBeNull();
+        expect(screen.queryByTestId('confirm-error')).toBeNull();
+    });
+
+    it('does not infinite-loop on mutual dependencies', () => {
+        const onSubmit = jest.fn();
+        render(
+            <GForm<PwForm> validators={makeValidators()} onSubmit={onSubmit}>
+                <GInput formKey="password" required validatorDeps={['confirm']} data-testid="password" />
+                <GInput
+                    formKey="confirm"
+                    required
+                    validatorDeps={['password']}
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="confirm" />
+                            {input.error && <small data-testid="confirm-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+                <button type="submit">Submit</button>
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'secret1' } });
+        fireEvent.change(screen.getByTestId('confirm'), { target: { value: 'secret1' } });
+        // mutating the dependency re-validates confirm without re-triggering password's effect
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'secret2' } });
+
+        expect(screen.getByTestId('confirm-error')).toHaveTextContent("Passwords don't match");
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled();
     });
 });
