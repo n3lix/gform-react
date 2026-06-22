@@ -35,6 +35,7 @@
   `required`, and more
 - **Custom Validations** – add custom validation with any rules
 - **Async Validations** — run asynchronous rules for server-side checks
+- **Cross-field validation** — re-validate a field when another changes (e.g. confirm-password) via `validatorDeps`
 - **Supports Yup, Zod, and more** – use any validation library you like
 - **Deeply Nested Forms** — structure forms however you like, across any number of components
 - **Dynamic fields** — add or remove fields at runtime without losing state
@@ -103,61 +104,6 @@ const App: FC = () => {
     );
 };
 ```
-
-## File inputs
-
-`GInput` with `type="file"` stores the selected **`File` object** in form state — not the browser's `C:\fakepath\...`
-string. File inputs are intentionally **uncontrolled** (the DOM owns the `FileList`), so you don't pass a `value`; the
-current selection is reflected into state on change.
-
-- Single file → `state.<key>.value` is `File | null`
-- With `multiple` → `state.<key>.value` is `File[]`
-
-```tsx
-import {type FC} from "react";
-import {GForm, GInput, GValidator, type GValidators} from "gform-react";
-
-interface CvForm {
-    cv: File | null;
-}
-
-const validators: GValidators<CvForm> = {
-    cv: new GValidator().withRequiredMessage('please attach your CV'),
-};
-
-const UploadForm: FC = () => {
-    return (
-        <GForm<CvForm>
-            validators={validators}
-            onSubmit={(formState, e) => {
-                e.preventDefault();
-                const data = formState.toFormData();
-                // upload `data` via your service…
-            }}
-        >
-            <GInput
-                formKey="cv"
-                type="file"
-                required
-                accept=".pdf,.doc,.docx"
-                element={(input, props) => (
-                    <div>
-                        <input {...props} />
-                        {/* show the chosen file name from state */}
-                        {input.value && <small>{(input.value as File).name}</small>}
-                        {input.error && <small className="p-error">{input.errorText}</small>}
-                    </div>
-                )}
-            />
-            <button>Upload</button>
-        </GForm>
-    );
-};
-```
-
-> For multiple files, add the native `multiple` attribute; `input.value` becomes a `File[]`. `formState.toFormData()`
-> includes file fields automatically via the underlying `<form>`.
-
 ## Installation
 
 npm:
