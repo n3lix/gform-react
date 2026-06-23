@@ -1,3 +1,8 @@
+## 3.3.0
+* Cross-field validation via `validatorDeps` for `GInput`/`RNGInput`
+* Fixed `toFormData(options)`
+* Expanded test coverage
+
 ## 3.2.0
 * **Form-level `dispatchChanges` accepts `{ validate: true }`** - `state.dispatchChanges(changes, { validate: true })` now re-runs each changed field's validators against its merged value, mirroring the field-level `dispatchChanges(changes, { validate })`. Applies to web and React Native (`RNGFormState`)
 

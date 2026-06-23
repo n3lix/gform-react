@@ -147,32 +147,34 @@ export const _toRawData = <T>(fields: IForm<T> & {
     return data as RawData<T>;
 };
 
-export const _toFormData = <T>(form: HTMLFormElement | null, options?: ToFormDataOptions<T>): FormData => {
+export const _toFormData = <T>(
+    form: HTMLFormElement | null,
+    fields: IForm<T> & { [key: string]: GInputState<any> },
+    options?: ToFormDataOptions<T>,
+): FormData => {
     if (!form) return new FormData();
 
-    if (options) {
-        const {exclude, include, transform} = options;
-        let formData: FormData;
+    const {include, exclude, transform} = options ?? {};
 
-        if (include) {
-            formData = new FormData();
-            include.forEach(key => formData.set(key as string, form[key as string]?.value));
-        } else {
-            formData = new FormData(form);
-            exclude?.forEach(key => formData.delete(key as string));
-        }
-
-        if (transform) {
-            for (const key in transform) {
-                const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-                formData.set(key, set(form[key]?.value));
+    let formData: FormData = new FormData(form);
+    if (include) {
+        Array.from(formData.keys()).forEach(key => {
+            if (!include.includes(key as keyof T)) {
+                formData.delete(key);
             }
-        }
-        return formData;
-
+        });
+    } else if (exclude) {
+        exclude.forEach(key => formData.delete(key as string));
     }
 
-    return new FormData(form);
+    if (transform) {
+        for (const key in transform) {
+            const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
+            formData.set(key, set(fields[key]?.value));
+        }
+    }
+
+    return formData;
 };
 
 export function _toURLSearchParams<T>(this: GFormState<T>, options?: ToURLSearchParamsOptions<T>): URLSearchParams {
@@ -280,7 +282,7 @@ export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElemen
         isValid: isFormValid,
         isInvalid: !isFormValid,
         toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
-        toFormData: () => _toFormData(formElement),
+        toFormData: (options?: ToFormDataOptions<T>) => _toFormData(formElement, fields, options),
         toURLSearchParams: _toURLSearchParams,
         checkValidity: function () { // it has to be a function in order to refer to 'this'
             this.isValid = formElement && formElement.checkValidity() || false;

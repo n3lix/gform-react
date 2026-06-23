@@ -69,6 +69,13 @@ export type RNGInputProps = BaseGenericFieldProps & TextInputProps & {
     /**an array of input keys that once one the values have changed `fetch` will re-run */
     fetchDeps?: string[];
     /**
+     * an array of input keys; when one of their values changes, this input is re-validated.
+     * useful for cross-field rules (e.g. a confirm-password field that depends on `password`).
+     * the field is only re-validated once it has been touched, so a dependency change never
+     * surfaces an error on a field the user hasn't interacted with yet.
+     */
+    validatorDeps?: string[];
+    /**
      * specify the debounce amount for validations in milliseconds
      * @default 300
      * */
@@ -98,6 +105,12 @@ export type GInputProps = BaseGenericFieldProps & Omit<InputHTMLAttributes<HTMLI
     fetch?: (state: GInputStateMutable, fields: IForm & { [key: string]: GInputStateMutable }) => void | Partial<GInputStateMutable> | Promise<void | Partial<GInputStateMutable>>;
     /**an array of input keys that once one the values have changed `fetch` will re-run */
     fetchDeps?: string[];
+    /**
+     * an array of input keys that when one of their values changes, this input is revalidated.
+     * the field is only re-validated once it has been touched, so a dependency change never
+     * surfaces an error on a field the user hasn't interacted with yet.
+     */
+    validatorDeps?: string[];
     /**
      * specify the debounce amount for validations in milliseconds
      * @default 300

@@ -1,9 +1,10 @@
-import React, {forwardRef, memo, type ReactNode, useEffect, useMemo} from 'react';
+import React, {forwardRef, memo, type ReactNode, useEffect, useMemo, useRef} from 'react';
 
 import {_debounce, _makeSelectFields} from '../helpers';
 import {useFormStore} from "../form-context";
 import {useFormSelector} from "../hooks";
 import type {GInputProps, GInputState, GElementProps} from '.';
+import type {GFormEvent} from "../form";
 
 const _noop = () => { /* noop */ };
 
@@ -17,6 +18,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
         type = 'text',
         fetch,
         fetchDeps,
+        validatorDeps,
         debounce = 300,
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         defaultChecked,
@@ -39,6 +41,8 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
 
     const inputState = useFormSelector(state => state.fields[formKey]);
     const _fetchDeps = useFormSelector(_makeSelectFields(fetchDeps));
+    const _validatorsDeps = useFormSelector(_makeSelectFields(validatorDeps));
+    const mounted = useRef(false);
 
     useEffect(() => {
         // constraint errors for initial values are baked at registration; this runs
@@ -137,6 +141,24 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
             });
         }
     }, [_fetchDeps]);
+
+    /**
+     * revalidate this field when a dependency's value changes
+     */
+    useEffect(() => {
+        if (!validatorDeps?.length) return;
+        // skip the mount run before the touched check
+        if (!mounted.current) {
+            mounted.current = true;
+            return;
+        }
+        if (!inputState.touched) return;
+        const inputElement = store.getInputElement(formKey);
+
+        if (inputElement) {
+            store.handlers._viHandler(inputState, { target: inputElement } as unknown as GFormEvent);
+        }
+    }, [_validatorsDeps]);
 
     /**
      * File inputs cannot be controlled through the `value` attribute — the DOM throws
