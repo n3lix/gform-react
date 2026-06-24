@@ -210,6 +210,31 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
     });
 
     /**
+     * Validate custom rules on submit, the fields the browser can't watch.
+     *
+     * Native constraints are already enforced by the browser, so constraint-only / no-validator fields are skipped.
+     */
+    const _validateForm = (): void => {
+        const fields = getState().fields;
+
+        for (const key in fields) {
+            const input = fields[key];
+            const validator = validators[input.validatorKey || input.formKey] || validators['*'];
+
+            if (!validator || !(validator.handlers.length || validator.asyncHandlers.length)) continue;
+
+            if (validator.asyncHandlers.length && input._validatedValue !== undefined && Object.is(input.value, input._validatedValue)) continue;
+
+            const before = {error: input.error, errorText: input.errorText, touched: input.touched};
+            _validateInput(input, undefined);
+            input.touched = true;
+            if (input.error !== before.error || input.errorText !== before.errorText || !before.touched) {
+                _dispatchChanges(input, key);
+            }
+        }
+    };
+
+    /**
      * Validate a field that mounts with a value (called from the field's mount effect).
      * Constraint errors were already baked at registration; this runs the full check
      * (custom/async, with the complete field set) and dispatches ONLY when the result changes —
@@ -309,5 +334,5 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
     };
 
-    return {_updateInputHandler, _viHandler, _blurHandler, _dispatchChanges, _dispatchAndValidate, _checkConstraints, _validateInitialField, _resetForm, _seedInitial, _createInputChecker: _checkInputManually};
+    return {_updateInputHandler, _viHandler, _blurHandler, _dispatchChanges, _dispatchAndValidate, _checkConstraints, _validateInitialField, _resetForm, _seedInitial, _validateForm, _createInputChecker: _checkInputManually};
 };

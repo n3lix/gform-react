@@ -37,8 +37,13 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
             const formChildren = typeof children === 'function' ? children(state) : children;
 
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
-                const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
-                if (state.isValid && onSubmit) {
+                handlers._validateForm();
+                const state = _buildFormState(getState<T>().fields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
+                if (!state.isValid) {
+                    e.preventDefault();
+                    return;
+                }
+                if (onSubmit) {
                     onSubmit(state, e);
                 }
             };

@@ -901,3 +901,92 @@ describe('GForm withSchemaAsync (Yup)', () => {
         await waitFor(() => expect(screen.queryByTestId('email-error')).toBeNull());
     });
 });
+
+describe('GForm submit-time validation gating (custom rules with no native constraint)', () => {
+    const renderWithError = (testId: string) =>
+        (input: any, props: any) => (
+            <>
+                <input {...props} data-testid={testId} />
+                {input.error && input.errorText && <small data-testid={`${testId}-err`}>{input.errorText}</small>}
+            </>
+        );
+
+    it('blocks an untouched custom-validation form and surfaces the error', () => {
+        const onSubmit = jest.fn();
+        render(
+            <GForm
+                validators={{ '*': new GValidator().withCustomValidation((i) => { i.errorText = 'required'; return !i.value; }) }}
+                onSubmit={(s, e) => { e.preventDefault(); onSubmit(s.toRawData()); }}
+            >
+                <GInput formKey="username" element={renderWithError('u')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.submit(screen.getByRole('button')); // never touched the field
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(screen.getByTestId('u-err')).toHaveTextContent('required');
+    });
+
+    it('blocks an untouched withSchema (zod) form', () => {
+        const onSubmit = jest.fn();
+        const schema = z.object({ email: z.string().email('enter a valid email') });
+        render(
+            <GForm validators={{ '*': new GValidator().withSchema(schema) }} onSubmit={(s, e) => { e.preventDefault(); onSubmit(); }}>
+                <GInput formKey="email" element={renderWithError('email')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('blocks an untouched field whose native constraint does not cover empty (minLength + custom)', () => {
+        // the counterexample: minLength passes on an empty field, so only the custom rule can gate it
+        const onSubmit = jest.fn();
+        const validators: GValidators = { username: new GValidator().withCustomValidation((i) => { i.errorText = 'custom required'; return !i.value; }) };
+        render(
+            <GForm validators={validators} onSubmit={(s, e) => { e.preventDefault(); onSubmit(); }}>
+                <GInput formKey="username" minLength={3} element={renderWithError('u')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(screen.getByTestId('u-err')).toHaveTextContent('custom required');
+    });
+
+    it('submits once when the custom rule passes', () => {
+        const onSubmit = jest.fn();
+        render(
+            <GForm
+                validators={{ '*': new GValidator().withCustomValidation((i) => { i.errorText = 'required'; return !i.value; }) }}
+                onSubmit={(s, e) => { e.preventDefault(); onSubmit(); }}
+            >
+                <GInput formKey="username" element={renderWithError('u')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('u'), { target: { value: 'tal' } });
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it('blocks an untouched async-schema (Yup) form (best-effort: optimistic block)', async () => {
+        const onSubmit = jest.fn();
+        const schema = yup.object({ email: yup.string().email('bad').required('required') });
+        render(
+            <GForm validators={{ '*': new GValidator().withSchemaAsync(schema) }} onSubmit={(s, e) => { e.preventDefault(); onSubmit(); }}>
+                <GInput formKey="email" debounce={20} element={renderWithError('email')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled();
+        await waitFor(() => expect(screen.getByTestId('email-err')).toHaveTextContent('required'));
+    });
+});
