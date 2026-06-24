@@ -5,6 +5,7 @@ import {GValidator} from './GValidator';
 import {GForm} from '../GForm';
 import {GInput} from '../fields/GInput';
 import type {GInputState} from '../fields';
+import type {StandardSchemaV1} from './standardSchema';
 
 const makeInput = (overrides: Partial<GInputState<any>> = {}): GInputState<any> =>
     ({formKey: 'field', value: '', error: false, errorText: '', ...overrides} as GInputState<any>);
@@ -149,5 +150,133 @@ describe('validation engine (integration via GForm)', () => {
         await waitFor(() =>
             expect(screen.getByTestId('user-err')).toHaveTextContent('username taken')
         );
+    });
+});
+
+// A hand-rolled Standard Schema object — no schema library needed to exercise the routing logic.
+const standardSchema = (validate: (value: any) => any): StandardSchemaV1 => ({
+    '~standard': { version: 1, vendor: 'test', validate },
+});
+
+const fieldsOf = (values: Record<string, any>) =>
+    Object.fromEntries(Object.entries(values).map(([k, v]) => [k, { value: v }])) as any;
+
+describe('GValidator withSchema (sync, Standard Schema)', () => {
+    it('routes a leaf issue to the matching field and sets errorText', () => {
+        const schema = standardSchema((v) =>
+            v.email.includes('@') ? { value: v } : { issues: [{ message: 'bad email', path: ['email'] }] });
+        const handler = new GValidator().withSchema(schema).handlers[0];
+
+        const fields = fieldsOf({ email: 'nope', password: 'whatever' });
+        const email = makeInput({ formKey: 'email' });
+        expect(handler(email, fields)).toBe(true);
+        expect(email.errorText).toBe('bad email');
+
+        // a field with no issue stays valid
+        expect(handler(makeInput({ formKey: 'password' }), fields)).toBe(false);
+    });
+
+    it('fires object-level (refine-style) rules and routes by issue path', () => {
+        const schema = standardSchema((v) =>
+            v.password === v.confirm ? { value: v } : { issues: [{ message: 'must match', path: ['confirm'] }] });
+        const handler = new GValidator().withSchema(schema).handlers[0];
+
+        const fields = fieldsOf({ password: 'a', confirm: 'b' });
+        // the mismatch routes to confirm, not password
+        expect(handler(makeInput({ formKey: 'password' }), fields)).toBe(false);
+        const confirm = makeInput({ formKey: 'confirm' });
+        expect(handler(confirm, fields)).toBe(true);
+        expect(confirm.errorText).toBe('must match');
+    });
+
+    it('surfaces every invalid field from one parse (not abort-early)', () => {
+        const schema = standardSchema(() => ({
+            issues: [{ message: 'a bad', path: ['a'] }, { message: 'b bad', path: ['b'] }],
+        }));
+        const handler = new GValidator().withSchema(schema).handlers[0];
+        const fields = fieldsOf({ a: '', b: '' });
+
+        const a = makeInput({ formKey: 'a' });
+        const b = makeInput({ formKey: 'b' });
+        expect(handler(a, fields)).toBe(true);
+        expect(handler(b, fields)).toBe(true);
+        expect(a.errorText).toBe('a bad');
+        expect(b.errorText).toBe('b bad');
+    });
+
+    it('parses once for N fields sharing the same values, and re-parses when values change', () => {
+        const validate = jest.fn(() => ({ issues: [{ message: 'x', path: ['nope'] }] }));
+        const handler = new GValidator().withSchema(standardSchema(validate)).handlers[0];
+
+        const fields = fieldsOf({ a: '1', b: '2' });
+        handler(makeInput({ formKey: 'a' }), fields);
+        handler(makeInput({ formKey: 'b' }), fields);
+        expect(validate).toHaveBeenCalledTimes(1); // memoized by values signature
+
+        handler(makeInput({ formKey: 'a' }), fieldsOf({ a: '9', b: '2' }));
+        expect(validate).toHaveBeenCalledTimes(2); // values changed → re-parse
+    });
+
+    it('normalizes a { key } path segment', () => {
+        const schema = standardSchema(() => ({ issues: [{ message: 'bad', path: [{ key: 'email' }] }] }));
+        const handler = new GValidator().withSchema(schema).handlers[0];
+        const email = makeInput({ formKey: 'email' });
+        expect(handler(email, fieldsOf({ email: 'x' }))).toBe(true);
+        expect(email.errorText).toBe('bad');
+    });
+});
+
+describe('GValidator withSchema (sync) — dev diagnostics', () => {
+    const original = (globalThis as any).__DEV__;
+    beforeEach(() => { (globalThis as any).__DEV__ = true; });
+    afterEach(() => { (globalThis as any).__DEV__ = original; jest.restoreAllMocks(); });
+
+    it('warns and stays valid when handed an async schema', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const schema = standardSchema(async () => ({ issues: [{ message: 'x', path: ['email'] }] }));
+        const handler = new GValidator().withSchema(schema).handlers[0];
+
+        expect(handler(makeInput({ formKey: 'email' }), fieldsOf({ email: 'x' }))).toBe(false);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('Async Schema'));
+    });
+
+    it('warns once when a cross-field rule has no path', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const schema = standardSchema(() => ({ issues: [{ message: 'root rule' }] }));
+        const handler = new GValidator().withSchema(schema).handlers[0];
+
+        expect(handler(makeInput({ formKey: 'email' }), fieldsOf({ email: 'x' }))).toBe(false);
+        expect(handler(makeInput({ formKey: 'password' }), fieldsOf({ email: 'x' }))).toBe(false);
+        expect(warn.mock.calls.filter(c => String(c[0]).includes('Schema Pathless Issue'))).toHaveLength(1);
+    });
+});
+
+describe('GValidator withSchemaAsync (async, Standard Schema)', () => {
+    it('awaits the schema and routes the matching issue', async () => {
+        const schema = standardSchema(async (v: any) =>
+            v.email.includes('@') ? { value: v } : { issues: [{ message: 'bad email', path: ['email'] }] });
+        const handler = new GValidator().withSchemaAsync(schema).asyncHandlers[0];
+
+        const email = makeInput({ formKey: 'email' });
+        await expect(handler(email, fieldsOf({ email: 'nope' }))).resolves.toBe(true);
+        expect(email.errorText).toBe('bad email');
+    });
+
+    it('also accepts a synchronous validate (await passes it through)', async () => {
+        const schema = standardSchema(() => ({ issues: [{ message: 'bad', path: ['email'] }] }));
+        const handler = new GValidator().withSchemaAsync(schema).asyncHandlers[0];
+        await expect(handler(makeInput({ formKey: 'email' }), fieldsOf({ email: 'x' }))).resolves.toBe(true);
+    });
+
+    it('parses once for N fields sharing the same values', async () => {
+        const validate = jest.fn(async () => ({ issues: [{ message: 'x', path: ['nope'] }] }));
+        const handler = new GValidator().withSchemaAsync(standardSchema(validate)).asyncHandlers[0];
+        const fields = fieldsOf({ a: '1', b: '2' });
+
+        await Promise.all([
+            handler(makeInput({ formKey: 'a' }), fields),
+            handler(makeInput({ formKey: 'b' }), fields),
+        ]);
+        expect(validate).toHaveBeenCalledTimes(1);
     });
 });

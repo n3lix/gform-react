@@ -1,3 +1,7 @@
+## 3.4.0
+* **Schema validation via `GValidator.withSchema` / `withSchemaAsync`**. validate the whole form against a single [Standard Schema](https://standardschema.dev)
+* **Exported `StandardSchemaV1` type** — for annotating a shared schema
+
 ## 3.3.0
 * Cross-field validation via `validatorDeps` for `GInput`/`RNGInput`
 * Fixed `toFormData(options)`

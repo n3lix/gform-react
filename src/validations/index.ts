@@ -17,3 +17,4 @@ export type GValidators<T=any> = {
 };
 
 export {GValidator} from './GValidator';
+export type { StandardSchemaV1 } from './standardSchema';

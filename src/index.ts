@@ -1,6 +1,6 @@
 export { GForm } from './GForm';
 export { GInput } from './fields/GInput';
-export { GValidator, type GValidators } from './validations';
+export { GValidator, type GValidators, type StandardSchemaV1 } from './validations';
 export { useFormSelector } from './hooks';
 
 export type { GFormProps } from './GForm';

@@ -365,7 +365,7 @@ export const _manualValidityKey = (input: GInputState<any>): keyof ValidityState
     if (max && Number(value) > Number(max)) return 'rangeOverflow';
 };
 
-const _depsReplacer = (_key: string, value: unknown) => {
+export const _depsReplacer = (_key: string, value: unknown) => {
     if (typeof File !== 'undefined' && value instanceof File) {
         return `File:${value.name}:${value.size}:${value.lastModified}:${value.type}`;
     }

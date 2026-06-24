@@ -1,5 +1,8 @@
 import type { GConstraintValidator, GConstraintValidatorHandler, GCustomValidatorHandler, GCustomValidatorHandlerAsync } from ".";
 import type {GInputState} from "../fields";
+import {_depsReplacer, _toRawData} from "../helpers";
+import { _applySchemaResult } from "./schema";
+import type { StandardSchemaV1, StandardSchemaV1Result } from "./standardSchema";
 
 export let handlersMap: { [key: string]: string };
 export let validityMap: { [key in keyof Partial<ValidityState>]: any };
@@ -138,6 +141,112 @@ export class GValidator<T = any> {
     withCustomValidationAsync(handler: GCustomValidatorHandlerAsync<T>): GValidator<T> {
         this._asyncHandlers.push(handler);
         return this;
+    }
+
+    /**
+     * Validate every field against a whole-object schema.
+     * any schema lib implementing Standard Schema v1 (Zod >= 3.24, Valibot, ArkType, Yup >= 1.7, Joi >= 18.0.0).
+     *
+     * Unlike routing each field to its own leaf sub-schema, this parses the WHOLE object once per validation pass, so object-level rules
+     * (`.refine()` / `.superRefine()`, conditional-required, confirm-password) fire and route to the
+     * field named by the issue's `path`.
+     *
+     * cross-field rules must set `path` to the target field's `formKey`
+     * (`.refine(fn, { message, path: ['confirmPassword'] })`). To also clear/refresh the *other*
+     * field of a pair as the user edits it, give the dependent field `validatorDeps={['password']}`.
+     *
+     * for an async schema (its `validate` returns a Promise, e.g. Yup, or async
+     * refinements) use `withSchemaAsync`; a sync `withSchema` cannot block on it.
+     *
+     * @example
+     * const zodSchema = z.object({
+     *         email: z.string().email('enter a valid email'),
+     *         password: z.string().min(8, 'at least 8 characters'),
+     *         confirm: z.string(),
+     *     })
+     *     .refine((data) => data.password === data.confirm, {
+     *         message: 'passwords must match',
+     *         path: ['confirm'], // route the cross-field error onto the confirm field
+     *     });
+     *
+     * //register on `'*'` to cover the whole form:
+     * const validators: GValidators<SignUpForm> = {
+     *     '*': new GValidator().withSchema(zodSchema)
+     * }.
+     */
+    withSchema(schema: StandardSchemaV1): GValidator<T> {
+        let cacheSig: string | undefined;
+        let cacheResult: StandardSchemaV1Result<unknown> | undefined;
+
+        if (__DEV__) {
+            var warnedAsync = false;
+        }
+
+        const handler: GCustomValidatorHandler<T> = (input, fields) => {
+            const values = _toRawData(fields);
+            const sig = JSON.stringify(values, _depsReplacer);
+
+            let result = sig === cacheSig ? cacheResult : undefined;
+            if (!result) {
+                const out = schema['~standard'].validate(values);
+                if (out instanceof Promise) {
+                    if (__DEV__ && !warnedAsync) {
+                        warnedAsync = true;
+                        console.warn(`DEV ONLY - [Async Schema] - 'withSchema' received a schema whose 'validate' is asynchronous; a synchronous validator can't block on it. Use 'withSchemaAsync' instead.`);
+                    }
+                    return false;
+                }
+                cacheSig = sig;
+                result = cacheResult = out;
+            }
+
+            return _applySchemaResult(result, input);
+        };
+
+        return this.withCustomValidation(handler);
+    }
+
+    /**
+     * Validate every field against a whole-object schema.
+     *
+     * Async variant of `withSchema`, for schemas whose `validate` returns a Promise.
+     * Yup (async-first), or Zod/Valibot/ArkType schemas with async refinements. routes issues by
+     * `formKey` exactly like `withSchema`, but runs on the debounced async-validation path (see the
+     * `debounce` prop). `await` transparently handles a synchronous `validate` too.
+     *
+     * @example
+     * const yupSchema = yup.object({
+     *     email: yup.string().email('enter a valid email').required('this field is required'),
+     *     password: yup.string().min(8, 'at least 8 characters').required('this field is required'),
+     *     confirm: yup
+     *         .string()
+     *         .oneOf([yup.ref('password')], 'passwords must match')
+     *         .required('this field is required'),
+     * });
+     *
+     * //register on `'*'` to cover the whole form:
+     * const validators: GValidators<SignUpForm> = {
+     *     '*': new GValidator().withSchemaAsync(yupSchema)
+     * }.
+     */
+    withSchemaAsync(schema: StandardSchemaV1): GValidator<T> {
+        let cacheSig: string | undefined;
+        let cachePromise: Promise<StandardSchemaV1Result<unknown>> | undefined;
+
+        const handler: GCustomValidatorHandlerAsync<T> = async (input, fields) => {
+            const values = _toRawData(fields);
+            const sig = JSON.stringify(values, _depsReplacer);
+
+            if (sig !== cacheSig || !cachePromise) {
+                cacheSig = sig;
+                cachePromise = Promise.resolve(schema['~standard'].validate(values));
+            }
+
+            const result = await cachePromise;
+            return _applySchemaResult(result, input);
+        };
+
+        return this.withCustomValidationAsync(handler);
     }
 
     private __addConstraintValidationHandler(validityKey: keyof ValidityState, message: string | GConstraintValidator): GValidator<T> {

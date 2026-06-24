@@ -1,5 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { z } from 'zod';
+import * as yup from 'yup';
 import { GForm } from './GForm';
 import { GInput } from './fields/GInput';
 import { GValidator } from './validations';
@@ -795,5 +797,107 @@ describe('GForm validatorDeps (cross-field validation)', () => {
         expect(screen.getByTestId('confirm-error')).toHaveTextContent("Passwords don't match");
         fireEvent.submit(screen.getByRole('button'));
         expect(onSubmit).not.toHaveBeenCalled();
+    });
+});
+
+describe('GForm withSchema (Zod)', () => {
+    type Form = { password: string; confirm: string };
+
+    // one whole-object schema, including a cross-field refine routed to `confirm`
+    const schema = z.object({
+        password: z.string().min(4, 'Min 4 chars'),
+        confirm: z.string(),
+    }).refine((d) => d.password === d.confirm, { message: "Passwords don't match", path: ['confirm'] });
+
+    const validators: GValidators<Form> = { '*': new GValidator().withSchema(schema) };
+
+    const renderForm = (onSubmit = jest.fn()) => {
+        render(
+            <GForm<Form> validators={validators} onSubmit={(state, e) => { e.preventDefault(); onSubmit(state); }}>
+                <GInput
+                    formKey="password"
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="password" />
+                            {input.error && <small data-testid="password-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+                <GInput
+                    formKey="confirm"
+                    validatorDeps={['password']}
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="confirm" />
+                            {input.error && <small data-testid="confirm-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+                <button type="submit">Submit</button>
+            </GForm>
+        );
+        return onSubmit;
+    };
+
+    it('submits when the whole-object schema passes', () => {
+        const onSubmit = renderForm();
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'abcd' } });
+        fireEvent.change(screen.getByTestId('confirm'), { target: { value: 'abcd' } });
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it('blocks submit and shows a leaf error while a field violates the schema', () => {
+        const onSubmit = renderForm();
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'ab' } }); // min(4) fails
+
+        expect(screen.getByTestId('password-error')).toHaveTextContent('Min 4 chars');
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('fires the cross-field refine on the confirm field, and clears it when password catches up', () => {
+        renderForm();
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'abcd' } });
+        fireEvent.change(screen.getByTestId('confirm'), { target: { value: 'abcdX' } });
+
+        // object-level .refine() fired (leaf-only routing never would) and routed to confirm
+        expect(screen.getByTestId('confirm-error')).toHaveTextContent("Passwords don't match");
+
+        // editing the dependency re-validates the touched confirm (validatorDeps) → mismatch clears
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'abcdX' } });
+        expect(screen.queryByTestId('confirm-error')).toBeNull();
+    });
+});
+
+describe('GForm withSchemaAsync (Yup)', () => {
+    type Form = { email: string };
+
+    // Yup's Standard Schema `validate` is async, so it must go through withSchemaAsync
+    const schema = yup.object({ email: yup.string().email('Enter a valid email').required('Required') });
+    const validators: GValidators<Form> = { '*': new GValidator().withSchemaAsync(schema) };
+
+    it('validates a real Yup schema through the debounced async path', async () => {
+        render(
+            <GForm<Form> validators={validators}>
+                <GInput
+                    formKey="email"
+                    debounce={20}
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="email" />
+                            {input.error && input.errorText && <small data-testid="email-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('email'), { target: { value: 'nope' } });
+        await waitFor(() => expect(screen.getByTestId('email-error')).toHaveTextContent('Enter a valid email'));
+
+        fireEvent.change(screen.getByTestId('email'), { target: { value: 'a@b.com' } });
+        await waitFor(() => expect(screen.queryByTestId('email-error')).toBeNull());
     });
 });
