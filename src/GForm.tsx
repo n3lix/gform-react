@@ -33,16 +33,15 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const formComponent = useMemo(() => {
-            const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
+            const state = _buildFormState(fields, formRef.current!, handlers);
             const formChildren = typeof children === 'function' ? children(state) : children;
 
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
-                handlers._validateForm();
-                const state = _buildFormState(getState<T>().fields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
-                if (!state.isValid) {
+                if (!handlers._validateForm()) {
                     e.preventDefault();
                     return;
                 }
+                const state = _buildFormState(getState<T>().fields, formRef.current!, handlers);
                 if (onSubmit) {
                     onSubmit(state, e);
                 }
@@ -120,7 +119,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
 
         useEffect(() => {
             const initialStateFields = getState<T>().fields;
-            const state = _buildFormState<T>(initialStateFields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
+            const state = _buildFormState<T>(initialStateFields, formRef.current!, handlers);
 
             if (__DEV__ && !warnedNoSubmitter && !_hasSubmitter(formRef.current)) {
                 warnedNoSubmitter = true;

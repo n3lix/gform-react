@@ -236,6 +236,75 @@ describe('GForm validity', () => {
         expect(result!).toBe(true);
     });
 
+    it('checkValidity() runs custom rules, not just native constraints', () => {
+        let latest: GFormState<{ name: string }> | undefined;
+        render(
+            <GForm<{ name: string }> validators={{ '*': new GValidator().withCustomValidation((i) => { i.errorText = 'required'; return !i.value; }) }}>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <GInput formKey="name" element={(input, props) => (
+                            <>
+                                <input {...props} data-testid="n" />
+                                {input.error && <small data-testid="n-err">{input.errorText}</small>}
+                            </>
+                        )} />
+                    );
+                }}
+            </GForm>
+        );
+
+        // untouched custom field with NO native constraint: native-only checkValidity returned true
+        let result: boolean;
+        act(() => { result = latest!.checkValidity(); });
+        expect(result!).toBe(false);                                       // custom rule ran
+        expect(screen.getByTestId('n-err')).toHaveTextContent('required'); // and surfaced
+
+        fireEvent.change(screen.getByTestId('n'), { target: { value: 'x' } });
+        act(() => { result = latest!.checkValidity(); });
+        expect(result!).toBe(true);
+    });
+
+    it('field-level checkValidity() validates the live value (not the registration snapshot)', () => {
+        let latest: GFormState<{ name: string }> | undefined;
+        render(
+            <GForm<{ name: string }> validators={{ '*': new GValidator().withCustomValidation((i) => { i.errorText = 'required'; return !i.value; }) }}>
+                {(state) => {
+                    latest = state;
+                    return <GInput formKey="name" element={(input, props) => <input {...props} data-testid="n" />} />;
+                }}
+            </GForm>
+        );
+
+        let r: boolean;
+        act(() => { r = latest!.name.checkValidity(); });
+        expect(r!).toBe(false); // empty → custom rule fails
+
+        fireEvent.change(screen.getByTestId('n'), { target: { value: 'x' } });
+        act(() => { r = latest!.name.checkValidity(); });
+        expect(r!).toBe(true);  // live value used (would stay false if it validated the stale snapshot)
+    });
+
+    it('clears a custom error from native validity when the value becomes valid (setCustomValidity reset)', () => {
+        render(
+            <GForm validators={{ name: new GValidator().withCustomValidation((i) => { i.errorText = 'no foo'; return i.value === 'foo'; }) }}>
+                <GInput formKey="name" element={(input, props) => <input {...props} data-testid="n" />} />
+            </GForm>
+        );
+        const el = screen.getByTestId('n') as HTMLInputElement;
+
+        // custom rule fails → the custom error is synced into native validity
+        fireEvent.change(el, { target: { value: 'foo' } });
+        expect(el.validity.customError).toBe(true);
+        expect(el.validationMessage).toBe('no foo');
+
+        // now valid → the `setCustomValidity('')` reset must release native validity
+        // (without it, _findValidityKey sees the stale customError and the clear path is skipped)
+        fireEvent.change(el, { target: { value: 'bar' } });
+        expect(el.validity.customError).toBe(false);
+        expect(el.validationMessage).toBe('');
+    });
+
     it('isInvalid flips when a validator error surfaces', () => {
         let latest: GFormState<{ name: string }> | undefined;
         render(

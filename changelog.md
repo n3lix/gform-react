@@ -2,6 +2,7 @@
 * **Schema validation via `GValidator.withSchema` / `withSchemaAsync`**. validate the whole form against a single [Standard Schema](https://standardschema.dev)
 * **Exported `StandardSchemaV1` type** — for annotating a shared schema
 * Bug fix - enforce custom rules on submit, gform now validates every field carrying a custom rule (`withCustomValidation`/`withCustomValidationAsync`/`withSchema`/`withSchemaAsync`) before firing `onSubmit` (or a native `action`/Server Action), and blocks an invalid submit.
+* Bug fix - `state.checkValidity()` now runs custom/schema rules.
 
 ## 3.3.0
 * Cross-field validation via `validatorDeps` for `GInput`/`RNGInput`

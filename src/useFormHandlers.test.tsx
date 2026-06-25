@@ -96,3 +96,50 @@ describe('useFormHandlers._blurHandler', () => {
         expect(setState).not.toHaveBeenCalled();
     });
 });
+
+
+describe('useFormHandlers._validateForm(true) — React Native full validation', () => {
+    const setup = (fields: InitialState['fields'], validators?: GValidators) => {
+        let state: InitialState = {fields};
+        const setState = jest.fn((updater: InitialState | ((prev: InitialState) => InitialState)) => {
+            state = typeof updater === 'function' ? updater(state) : updater;
+        });
+        const handlers = useFormHandlers((() => state) as Store['getState'], setState as unknown as Store['setState'], validators);
+        return {handlers, getState: () => state};
+    };
+
+    it('enforces native constraints in JS and returns the whole-form validity', () => {
+        const {handlers, getState} = setup(
+            {name: makeInput({required: true})},
+            {name: new GValidator().withRequiredMessage('required')},
+        );
+
+        expect(handlers._validateForm(true)).toBe(false); // required + empty → invalid (no browser)
+        expect(getState().fields.name.error).toBe(true);
+        expect(getState().fields.name.errorText).toBe('required');
+    });
+
+    it('returns true when every field passes', () => {
+        const {handlers, getState} = setup(
+            {name: makeInput({required: true, value: 'Tal'})},
+            {name: new GValidator().withRequiredMessage('required')},
+        );
+
+        expect(handlers._validateForm(true)).toBe(true);
+        expect(getState().fields.name.error).toBe(false);
+    });
+
+    it('runs custom rules too', () => {
+        const {handlers} = setup(
+            {code: makeInput({formKey: 'code', value: 'foo'})},
+            {code: new GValidator().withCustomValidation((i) => { i.errorText = 'no foo'; return i.value === 'foo'; })},
+        );
+
+        expect(handlers._validateForm(true)).toBe(false); // custom rule rejects 'foo'
+    });
+
+    it('skips a field with no validator (RN limitation: native constraints need a message handler)', () => {
+        const {handlers} = setup({name: makeInput({required: true})}); // required attr, but no validators
+        expect(handlers._validateForm(true)).toBe(true);
+    });
+});

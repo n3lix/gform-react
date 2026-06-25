@@ -64,6 +64,16 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
 
         const inputState = _buildInputInitialValues(config as GInputInitialState);
 
+        inputState.checkValidity = () => {
+            const input = stateRef.current.fields[inputState.formKey] as GInputState<any>;
+            const el = getInputElement(inputState.formKey);
+            // read `validity.valid` (not `checkValidity()`) so the native check fires no `invalid`
+            // event — validation runs through exactly one path: the explicit `_viHandler` below.
+            if (el && !el.validity.valid) return false; // native first (RN skips)
+            handlers._viHandler(input);                 // run custom validation on the live field
+            return !input.error;                        // valid = true
+        };
+
         // Fields that mount with a value get their constraint validation baked in now, so
         // constraint errors render on the first paint (no follow-up re-render). Custom/async
         // validation still runs in the field's mount effect (with the full field set).
