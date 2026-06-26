@@ -12,7 +12,7 @@ import type {GValidators} from "./validations";
 type FormRendererProps<T> = GFormProps<T> & { formRef: RefObject<HTMLFormElement|null> };
 
 if (__DEV__) {
-    var _warnedOptimizedDefault = false;
+    var _warnedOptimizedDefault = false, warnedNoSubmitter = false;
 }
 
 const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
@@ -33,12 +33,16 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const formComponent = useMemo(() => {
-            const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
+            const state = _buildFormState(fields, formRef.current!, handlers);
             const formChildren = typeof children === 'function' ? children(state) : children;
 
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
-                const state = _buildFormState(fields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
-                if (state.isValid && onSubmit) {
+                if (!handlers._validateForm()) {
+                    e.preventDefault();
+                    return;
+                }
+                const state = _buildFormState(getState<T>().fields, formRef.current!, handlers);
+                if (onSubmit) {
                     onSubmit(state, e);
                 }
             };
@@ -115,9 +119,10 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
 
         useEffect(() => {
             const initialStateFields = getState<T>().fields;
-            const state = _buildFormState<T>(initialStateFields, formRef.current!, handlers._dispatchChanges, handlers._dispatchAndValidate);
+            const state = _buildFormState<T>(initialStateFields, formRef.current!, handlers);
 
-            if (__DEV__ && !_hasSubmitter(formRef.current)) {
+            if (__DEV__ && !warnedNoSubmitter && !_hasSubmitter(formRef.current)) {
+                warnedNoSubmitter = true;
                 console.warn(`DEV ONLY - [No Submit Button] - you have created a form without a button type=submit, this will prevent the onSubmit event from being fired.\nif you have a button with onClick event that handle the submission of the form then ignore this warning\nbut don't forget to manually invoke the checkValidity() function to check if the form is valid before perfoming any action, for example:\nif (formState.checkValidity()) { \n\t//do somthing\n}\n`);
             }
 

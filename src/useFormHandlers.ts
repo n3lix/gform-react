@@ -18,12 +18,14 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
     const _viHandler = (input: GInputState<any>, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
         if (!input) return;
 
+        if (__DEBUG__) {
+            console.log('[viHandler] -', `validating input '${input.formKey}'`, input);
+        }
+
         const element = e && e.target;
         input.touched = true;
 
         if (typeof document !== 'undefined' && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)) {
-            if (!input.checkValidity) input.checkValidity = () => element.checkValidity();
-
             const hasInitialValue = !input.dirty && input.value;
 
             if (hasInitialValue) {
@@ -37,19 +39,16 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             if (!validityKey && input.error) {
                 element.setCustomValidity(input.errorText || 'error');
             }
-
-            _dispatchChanges(input, input.formKey);
         } else {
             if (__DEBUG__) {
                 console.log('[validateInputHandler] -', `the input '${input.formKey}' is not a native web element\nevent:`, e);
             }
 
             // fallback - validate the input for validations manually
-            input.checkValidity = () => _checkInputManually(input).isValid;
-            input.checkValidity();
-
-            _dispatchChanges(input, input.formKey);
+            _checkInputManually(input);
         }
+
+        _dispatchChanges(input, input.formKey);
     };
 
     const _blurHandler = (input: GInputState<any>, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
@@ -210,6 +209,54 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
     });
 
     /**
+     * Validate custom rules on submit, the fields that the browser can't watch.
+     *
+     * Native constraints are already enforced by the browser, so constraint-only / no-validator fields are skipped.
+     *
+     * `full = false` mode (web): because native constraints are enforced by the browser, only fields with
+     * CUSTOM rules are re-checked via `_validateInput(input)` (constraint handlers no-op),
+     * leaving native constraints to the browser.
+     *
+     * `full = true` mode (React Native): no browser, so every validator-bearing field is validated in
+     * full (constraints + custom) via `_checkInputManually`.
+     *
+     * Either way, an async validator already settled for the field's current value is not re-run.
+     */
+    const _validateForm = (full = false): boolean => {
+        const fields = getState().fields;
+        let valid = true;
+
+        for (const key in fields) {
+            const input = fields[key];
+            const validator = validators[input.validatorKey || input.formKey] || validators['*'];
+
+            /* rerun validation only where its needed but still track every field's error below.
+            *  - no validator: nothing to run
+            *  - web (full=false) constraint-only field: the browser already gated it
+            *  - async validator already settled for the current value: dont rerun (would reblock)
+            */
+            const skip =
+                !validator
+                || (!full && !(validator.handlers.length || validator.asyncHandlers.length))
+                || (validator.asyncHandlers.length && input._validatedValue !== undefined && Object.is(input.value, input._validatedValue));
+
+            if (!skip) {
+                const before = {error: input.error, errorText: input.errorText, touched: input.touched};
+                if (full) _checkInputManually(input);
+                else _validateInput(input);
+                input.touched = true;
+                if (input.error !== before.error || input.errorText !== before.errorText || !before.touched) {
+                    _dispatchChanges(input, key);
+                }
+            }
+
+            if (input.error) valid = false;
+        }
+
+        return valid;
+    };
+
+    /**
      * Validate a field that mounts with a value (called from the field's mount effect).
      * Constraint errors were already baked at registration; this runs the full check
      * (custom/async, with the complete field set) and dispatches ONLY when the result changes —
@@ -309,5 +356,5 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
     };
 
-    return {_updateInputHandler, _viHandler, _blurHandler, _dispatchChanges, _dispatchAndValidate, _checkConstraints, _validateInitialField, _resetForm, _seedInitial, _createInputChecker: _checkInputManually};
+    return {_updateInputHandler, _viHandler, _blurHandler, _dispatchChanges, _dispatchAndValidate, _checkConstraints, _validateInitialField, _resetForm, _seedInitial, _validateForm, _createInputChecker: _checkInputManually};
 };

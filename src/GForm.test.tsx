@@ -1,5 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { z } from 'zod';
+import * as yup from 'yup';
 import { GForm } from './GForm';
 import { GInput } from './fields/GInput';
 import { GValidator } from './validations';
@@ -232,6 +234,75 @@ describe('GForm validity', () => {
         fireEvent.change(screen.getByTestId('i'), {target: {value: 'x'}});
         act(() => { result = latest!.checkValidity(); });
         expect(result!).toBe(true);
+    });
+
+    it('checkValidity() runs custom rules, not just native constraints', () => {
+        let latest: GFormState<{ name: string }> | undefined;
+        render(
+            <GForm<{ name: string }> validators={{ '*': new GValidator().withCustomValidation((i) => { i.errorText = 'required'; return !i.value; }) }}>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <GInput formKey="name" element={(input, props) => (
+                            <>
+                                <input {...props} data-testid="n" />
+                                {input.error && <small data-testid="n-err">{input.errorText}</small>}
+                            </>
+                        )} />
+                    );
+                }}
+            </GForm>
+        );
+
+        // untouched custom field with NO native constraint: native-only checkValidity returned true
+        let result: boolean;
+        act(() => { result = latest!.checkValidity(); });
+        expect(result!).toBe(false);                                       // custom rule ran
+        expect(screen.getByTestId('n-err')).toHaveTextContent('required'); // and surfaced
+
+        fireEvent.change(screen.getByTestId('n'), { target: { value: 'x' } });
+        act(() => { result = latest!.checkValidity(); });
+        expect(result!).toBe(true);
+    });
+
+    it('field-level checkValidity() validates the live value (not the registration snapshot)', () => {
+        let latest: GFormState<{ name: string }> | undefined;
+        render(
+            <GForm<{ name: string }> validators={{ '*': new GValidator().withCustomValidation((i) => { i.errorText = 'required'; return !i.value; }) }}>
+                {(state) => {
+                    latest = state;
+                    return <GInput formKey="name" element={(input, props) => <input {...props} data-testid="n" />} />;
+                }}
+            </GForm>
+        );
+
+        let r: boolean;
+        act(() => { r = latest!.name.checkValidity(); });
+        expect(r!).toBe(false); // empty → custom rule fails
+
+        fireEvent.change(screen.getByTestId('n'), { target: { value: 'x' } });
+        act(() => { r = latest!.name.checkValidity(); });
+        expect(r!).toBe(true);  // live value used (would stay false if it validated the stale snapshot)
+    });
+
+    it('clears a custom error from native validity when the value becomes valid (setCustomValidity reset)', () => {
+        render(
+            <GForm validators={{ name: new GValidator().withCustomValidation((i) => { i.errorText = 'no foo'; return i.value === 'foo'; }) }}>
+                <GInput formKey="name" element={(input, props) => <input {...props} data-testid="n" />} />
+            </GForm>
+        );
+        const el = screen.getByTestId('n') as HTMLInputElement;
+
+        // custom rule fails → the custom error is synced into native validity
+        fireEvent.change(el, { target: { value: 'foo' } });
+        expect(el.validity.customError).toBe(true);
+        expect(el.validationMessage).toBe('no foo');
+
+        // now valid → the `setCustomValidity('')` reset must release native validity
+        // (without it, _findValidityKey sees the stale customError and the clear path is skipped)
+        fireEvent.change(el, { target: { value: 'bar' } });
+        expect(el.validity.customError).toBe(false);
+        expect(el.validationMessage).toBe('');
     });
 
     it('isInvalid flips when a validator error surfaces', () => {
@@ -795,5 +866,196 @@ describe('GForm validatorDeps (cross-field validation)', () => {
         expect(screen.getByTestId('confirm-error')).toHaveTextContent("Passwords don't match");
         fireEvent.submit(screen.getByRole('button'));
         expect(onSubmit).not.toHaveBeenCalled();
+    });
+});
+
+describe('GForm withSchema (Zod)', () => {
+    type Form = { password: string; confirm: string };
+
+    // one whole-object schema, including a cross-field refine routed to `confirm`
+    const schema = z.object({
+        password: z.string().min(4, 'Min 4 chars'),
+        confirm: z.string(),
+    }).refine((d) => d.password === d.confirm, { message: "Passwords don't match", path: ['confirm'] });
+
+    const validators: GValidators<Form> = { '*': new GValidator().withSchema(schema) };
+
+    const renderForm = (onSubmit = jest.fn()) => {
+        render(
+            <GForm<Form> validators={validators} onSubmit={(state, e) => { e.preventDefault(); onSubmit(state); }}>
+                <GInput
+                    formKey="password"
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="password" />
+                            {input.error && <small data-testid="password-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+                <GInput
+                    formKey="confirm"
+                    validatorDeps={['password']}
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="confirm" />
+                            {input.error && <small data-testid="confirm-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+                <button type="submit">Submit</button>
+            </GForm>
+        );
+        return onSubmit;
+    };
+
+    it('submits when the whole-object schema passes', () => {
+        const onSubmit = renderForm();
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'abcd' } });
+        fireEvent.change(screen.getByTestId('confirm'), { target: { value: 'abcd' } });
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it('blocks submit and shows a leaf error while a field violates the schema', () => {
+        const onSubmit = renderForm();
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'ab' } }); // min(4) fails
+
+        expect(screen.getByTestId('password-error')).toHaveTextContent('Min 4 chars');
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('fires the cross-field refine on the confirm field, and clears it when password catches up', () => {
+        renderForm();
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'abcd' } });
+        fireEvent.change(screen.getByTestId('confirm'), { target: { value: 'abcdX' } });
+
+        // object-level .refine() fired (leaf-only routing never would) and routed to confirm
+        expect(screen.getByTestId('confirm-error')).toHaveTextContent("Passwords don't match");
+
+        // editing the dependency re-validates the touched confirm (validatorDeps) → mismatch clears
+        fireEvent.change(screen.getByTestId('password'), { target: { value: 'abcdX' } });
+        expect(screen.queryByTestId('confirm-error')).toBeNull();
+    });
+});
+
+describe('GForm withSchemaAsync (Yup)', () => {
+    type Form = { email: string };
+
+    // Yup's Standard Schema `validate` is async, so it must go through withSchemaAsync
+    const schema = yup.object({ email: yup.string().email('Enter a valid email').required('Required') });
+    const validators: GValidators<Form> = { '*': new GValidator().withSchemaAsync(schema) };
+
+    it('validates a real Yup schema through the debounced async path', async () => {
+        render(
+            <GForm<Form> validators={validators}>
+                <GInput
+                    formKey="email"
+                    debounce={20}
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="email" />
+                            {input.error && input.errorText && <small data-testid="email-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('email'), { target: { value: 'nope' } });
+        await waitFor(() => expect(screen.getByTestId('email-error')).toHaveTextContent('Enter a valid email'));
+
+        fireEvent.change(screen.getByTestId('email'), { target: { value: 'a@b.com' } });
+        await waitFor(() => expect(screen.queryByTestId('email-error')).toBeNull());
+    });
+});
+
+describe('GForm submit-time validation gating (custom rules with no native constraint)', () => {
+    const renderWithError = (testId: string) =>
+        (input: any, props: any) => (
+            <>
+                <input {...props} data-testid={testId} />
+                {input.error && input.errorText && <small data-testid={`${testId}-err`}>{input.errorText}</small>}
+            </>
+        );
+
+    it('blocks an untouched custom-validation form and surfaces the error', () => {
+        const onSubmit = jest.fn();
+        render(
+            <GForm
+                validators={{ '*': new GValidator().withCustomValidation((i) => { i.errorText = 'required'; return !i.value; }) }}
+                onSubmit={(s, e) => { e.preventDefault(); onSubmit(s.toRawData()); }}
+            >
+                <GInput formKey="username" element={renderWithError('u')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.submit(screen.getByRole('button')); // never touched the field
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(screen.getByTestId('u-err')).toHaveTextContent('required');
+    });
+
+    it('blocks an untouched withSchema (zod) form', () => {
+        const onSubmit = jest.fn();
+        const schema = z.object({ email: z.string().email('enter a valid email') });
+        render(
+            <GForm validators={{ '*': new GValidator().withSchema(schema) }} onSubmit={(s, e) => { e.preventDefault(); onSubmit(); }}>
+                <GInput formKey="email" element={renderWithError('email')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('blocks an untouched field whose native constraint does not cover empty (minLength + custom)', () => {
+        // the counterexample: minLength passes on an empty field, so only the custom rule can gate it
+        const onSubmit = jest.fn();
+        const validators: GValidators = { username: new GValidator().withCustomValidation((i) => { i.errorText = 'custom required'; return !i.value; }) };
+        render(
+            <GForm validators={validators} onSubmit={(s, e) => { e.preventDefault(); onSubmit(); }}>
+                <GInput formKey="username" minLength={3} element={renderWithError('u')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(screen.getByTestId('u-err')).toHaveTextContent('custom required');
+    });
+
+    it('submits once when the custom rule passes', () => {
+        const onSubmit = jest.fn();
+        render(
+            <GForm
+                validators={{ '*': new GValidator().withCustomValidation((i) => { i.errorText = 'required'; return !i.value; }) }}
+                onSubmit={(s, e) => { e.preventDefault(); onSubmit(); }}
+            >
+                <GInput formKey="username" element={renderWithError('u')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('u'), { target: { value: 'tal' } });
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it('blocks an untouched async-schema (Yup) form (best-effort: optimistic block)', async () => {
+        const onSubmit = jest.fn();
+        const schema = yup.object({ email: yup.string().email('bad').required('required') });
+        render(
+            <GForm validators={{ '*': new GValidator().withSchemaAsync(schema) }} onSubmit={(s, e) => { e.preventDefault(); onSubmit(); }}>
+                <GInput formKey="email" debounce={20} element={renderWithError('email')} />
+                <button>submit</button>
+            </GForm>
+        );
+
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).not.toHaveBeenCalled();
+        await waitFor(() => expect(screen.getByTestId('email-err')).toHaveTextContent('required'));
     });
 });

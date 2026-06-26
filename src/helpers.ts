@@ -2,6 +2,13 @@ import type {GInputInitialState, GInputState} from './fields';
 import type {GChangeEvent, GDOMElement, IForm, PartialForm} from './form';
 import type {GFormState, InitialState, RawData, RNGFormState, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
 
+/** The subset of form handlers the form-state builders need (avoids importing `useFormHandlers`). */
+type FormHandlers = {
+    _dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void;
+    _dispatchAndValidate: (changes: Partial<GInputState<any>>, key: string) => void;
+    _validateForm: (full?: boolean) => boolean;
+};
+
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
 
 export const defaultFieldProps: { [key: string]: { value: string | number | boolean | File | File[] | null } } = {
@@ -274,7 +281,7 @@ export const _mergeRefs = <T>(
     };
 };
 
-export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElement: HTMLFormElement, dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void, dispatchAndValidate: (changes: Partial<GInputState<any>>, key: string) => void) => {
+export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElement: HTMLFormElement, handlers: FormHandlers) => {
     const isFormValid = _checkIfFormIsValid(fields);
 
     const formState: GFormState<T> = {
@@ -285,19 +292,27 @@ export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElemen
         toFormData: (options?: ToFormDataOptions<T>) => _toFormData(formElement, fields, options),
         toURLSearchParams: _toURLSearchParams,
         checkValidity: function () { // it has to be a function in order to refer to 'this'
-            this.isValid = formElement && formElement.checkValidity() || false;
+            const nativeValid = formElement ? formElement.checkValidity() : false;
+            if (!nativeValid) {
+                this.isValid = false;
+                this.isInvalid = true;
+                return false;
+            }
+
+            // run custom rules (the browser doesn't know them) then combine with native validity
+            this.isValid = handlers._validateForm();
             this.isInvalid = !this.isValid;
             return this.isValid;
         },
         dispatchChanges: (changes: PartialForm<T> & {
             [key: string]: Partial<GInputState<any>>
-        }, options?: { validate?: boolean }) => _formDispatch(fields, dispatchChanges, dispatchAndValidate, changes, options)
+        }, options?: { validate?: boolean }) => _formDispatch(fields, handlers._dispatchChanges, handlers._dispatchAndValidate, changes, options)
     };
 
     return formState;
 };
 
-export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void, dispatchAndValidate: (changes: Partial<GInputState<any>>, key: string) => void) => {
+export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], handlers: FormHandlers) => {
     const isFormValid = _checkIfFormIsValid(fields);
 
     const formState: RNGFormState<T> = {
@@ -306,18 +321,15 @@ export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], dispatch
         isInvalid: !isFormValid,
         toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
         toURLSearchParams: _toURLSearchParams,
-        checkValidity: () => {
-            for (const i in fields) {
-                const valid = fields[i].checkValidity();
-                if (!valid) {
-                    return false;
-                }
-            }
-            return true;
+        checkValidity: function () { // a function so it can refer to 'this'
+            // no browser to enforce native constraints so we validate every field (constraints + custom);
+            this.isValid = handlers._validateForm(true);
+            this.isInvalid = !this.isValid;
+            return this.isValid;
         },
         dispatchChanges: (changes: PartialForm<T> & {
             [key: string]: Partial<GInputState<any>>
-        }, options?: { validate?: boolean }) => _formDispatch(fields, dispatchChanges, dispatchAndValidate, changes, options)
+        }, options?: { validate?: boolean }) => _formDispatch(fields, handlers._dispatchChanges, handlers._dispatchAndValidate, changes, options)
     };
 
     return formState;
@@ -365,7 +377,7 @@ export const _manualValidityKey = (input: GInputState<any>): keyof ValidityState
     if (max && Number(value) > Number(max)) return 'rangeOverflow';
 };
 
-const _depsReplacer = (_key: string, value: unknown) => {
+export const _depsReplacer = (_key: string, value: unknown) => {
     if (typeof File !== 'undefined' && value instanceof File) {
         return `File:${value.name}:${value.size}:${value.lastModified}:${value.type}`;
     }
