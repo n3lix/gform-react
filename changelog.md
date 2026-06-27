@@ -1,3 +1,7 @@
+## 3.4.1
+* When both `type` (`email`/`url`) and a stricter `pattern` are set on the same input and *both* are violated, `patternMismatch` now takes priority over `typeMismatch` for the reported violation/error message
+* Bug fix - `type="tel"` no longer triggers a `typeMismatch` violation. Native browsers don't validate `tel` format at all
+
 ## 3.4.0
 * **Schema validation via `GValidator.withSchema` / `withSchemaAsync`**. validate the whole form against a single [Standard Schema](https://standardschema.dev)
 * **Exported `StandardSchemaV1` type** — for annotating a shared schema

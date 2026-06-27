@@ -26,10 +26,8 @@ export const baseValidations = new GValidator()
 
 export const validators: GValidators<SignUpForm> = {
     '*': baseValidations,
-    email: new GValidator(baseValidations).withCustomValidation((input) => {
-        input.errorText = `${input.formKey} pattern`;
-        return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    }),
+    email: new GValidator(baseValidations)
+        .withPatternMismatchMessage((input) => `${input.formKey} pattern`),
     firstName: new GValidator(baseValidations)
         .withMinLengthMessage((input) => `${input.formKey} must contain atleast ${input.minLength} chars`),
     password: new GValidator<SignUpForm>(baseValidations)

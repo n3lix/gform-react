@@ -77,15 +77,27 @@ export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputSt
     };
 };
 
+/**
+ * `typeMismatch` is deferred rather than returned immediately: if any other violation (notably
+ * `patternMismatch`, which is almost always stricter for `email`/`url`) is also set, that one
+ *  wins instead. `typeMismatch` is only returned as a fallback when it's the sole violation.
+ */
 export const _findValidityKey = (validity: Partial<ValidityState>): keyof ValidityState | undefined => {
+    let deferredTypeMismatch: keyof ValidityState | undefined;
+
     for (const key in validity) {
         if (key !== 'valid' && validity[key as keyof ValidityState]) {
+            if (key === 'typeMismatch') {
+                deferredTypeMismatch = 'typeMismatch';
+                continue;
+            }
             if (__DEBUG__) {
                 console.log('[findValidityKey] -', 'found validity key:', key);
             }
             return key as keyof ValidityState;
         }
     }
+    return deferredTypeMismatch;
 };
 
 export const _checkTypeMismatch = (input: GInputState<any>) => {
@@ -102,8 +114,6 @@ export const _checkTypeMismatch = (input: GInputState<any>) => {
             } catch {
                 return true;
             }
-        case 'tel':
-            return !/^\+?[0-9\s\-().]{7,}$/.test(value); // basic phone pattern
         default:
             return false;
     }
@@ -357,13 +367,15 @@ const _formDispatch = <T>(
 };
 
 /**
- * Determine the first violated constraint for an input, checked in the same priority order as
- * the native `ValidityState`. Short-circuits: each check runs only until a violation is found.
+ * Determine the first violated constraint for an input. Short-circuits: each check runs only
+ * until a violation is found. `pattern` is checked before `type` — mirrors `_findValidityKey`'s
+ * deferral of `typeMismatch` in favor of a stricter `patternMismatch`, where applicable.
  */
 export const _manualValidityKey = (input: GInputState<any>): keyof ValidityState | undefined => {
     const {value, required, minLength, maxLength, pattern, min, max} = input;
 
     if (required && (!value || (Array.isArray(value) && !value.length))) return 'valueMissing';
+    if (pattern && _checkResult(pattern, value)) return 'patternMismatch';
     if (_checkTypeMismatch(input)) return 'typeMismatch';
 
     if (minLength || maxLength) {
@@ -372,7 +384,6 @@ export const _manualValidityKey = (input: GInputState<any>): keyof ValidityState
         if (maxLength && length > maxLength) return 'tooLong';
     }
 
-    if (pattern && _checkResult(pattern, value)) return 'patternMismatch';
     if (min && Number(value) < Number(min)) return 'rangeUnderflow';
     if (max && Number(value) > Number(max)) return 'rangeOverflow';
 };
