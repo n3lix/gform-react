@@ -4,10 +4,12 @@
     </a>
     <h1>gform-react</h1>
     <p><b>Performant, lightweight, Type-safe React forms</b> that work the same on the web, with native action and <b>Next.js Server Actions</b>, and in <b>React Native</b> - no adapters, no casts, zero dependencies.</p>
+    <p>The whole point of gform-react is that it should feel closer to writing native forms than to configuring a
+library.</p>
 <br/>
 <div align="center">
   <a href="https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js">
-    <img src="http://img.badgesize.io/https://unpkg.com/gform-react@latest/dist/cjs/gform-react.production.js?compression=gzip&style=for-the-badge" alt="Minified size">
+    <img src="https://img.badgesize.io/https://unpkg.com/gform-react@3.4.1/dist/cjs/gform-react.production.js?compression=gzip&style=for-the-badge&label=gzip%20size" alt="Gzipped size">
   </a>
 
   <img src="https://img.shields.io/npm/dt/gform-react.svg?style=for-the-badge" alt="React DOM peer dependency">
@@ -28,25 +30,25 @@
 
 ## Features
 
-- **Lightweight – no dependencies**
-- **Tree‑shakable** — import only what you use to keep bundles small
-- **Minimal re-renders** — updates only the fields that actually change
-- **Native HTML constraint validation** — full support for `min`, `max`, `pattern`, `minLength`, `maxLength`,
+- **Tiny & no dependencies** - 4.8 KB gzipped, tree‑shakable
+- **Minimal re-renders** - updates only the fields that actually change
+- **Native HTML constraint validation** - full support for `min`, `max`, `pattern`, `minLength`, `maxLength`,
   `required`, and more
-- **Schema validation (Zod, Yup, Valibot, ArkType…)** — drive the whole form from one [Standard Schema](https://standardschema.dev) via `GValidator.withSchema` / `withSchemaAsync`, including object-level cross-field rules — with zero runtime dependencies
-- **Custom Validations** – add custom validation with any rules
-- **Async Validations** — run asynchronous rules for server-side checks
-- **Cross-field validation** — re-validate a field when another changes (e.g. confirm-password) via `validatorDeps`
-- **Deeply Nested Forms** — structure forms however you like, across any number of components
-- **Dynamic fields** — add or remove fields at runtime without losing state
-- **Native `<form>` actions** — fully supports browser‑level form submission, including action, method, and HTTP
+- **Schema validation via [Standard Schema v1](https://standardschema.dev)** - any library implementing the spec works out of the box (Zod, Valibot, ArkType, Yup, …); drive the whole form from one schema via `GValidator.withSchema` / `withSchemaAsync`, including object-level cross-field rules - with zero runtime dependencies
+- **Custom & async validation** - add any rule via `withCustomValidation`, including asynchronous server-side checks with `withCustomValidationAsync`
+- **Cross-field validation** - re-validate a field when another changes (e.g. confirm-password) via `validatorDeps`
+- **Deeply Nested Forms** - structure forms however you like, split a big form into focused and reusable components
+- **Dynamic fields** - add or remove fields at runtime without losing state
+- **Native `<form>` actions** - fully supports browser‑level form submission, including action, method, and HTTP
   navigation, with no JavaScript required
-- **Next.js Server Actions support** — works seamlessly with Server Actions through standard `<form>` submissions, with
+- **Next.js Server Actions support** - works seamlessly with Server Actions through standard `<form>` submissions, with
   no special adapters or client‑side wiring
-- **Accessibility‑friendly** — automatically manages `aria-required` and `aria-invalid`
-- **File inputs** — `type="file"` stores the real `File` object (or `File[]` with `multiple`), not the `C:\fakepath\...`
+- **Custom data on any input** - attach arbitrary data to a field via `dispatchChanges` (option lists,
+  loading flags, fetched metadata); it's kept in form state for your UI, separate from the submitted value
+- **Accessibility‑friendly** - automatically manages `aria-required` and `aria-invalid`
+- **File inputs** - `type="file"` stores the real `File` object (or `File[]` with `multiple`), not the `C:\fakepath\...`
   string
-- **React Native support** — works seamlessly across web and mobile
+- **React Native support** - the same API on web and mobile (via `gform-react/native`); no adapters, no separate mental model
 
 ## Documentation
 
@@ -85,8 +87,9 @@ const App: FC = () => {
                            }}>
             <GInput formKey='username'
                     required
+                    placeholder='username'
                     element={(input, props) => <div>
-                        <input {...props} placeholder='username'/>
+                        <input {...props}/>
                         {input.error && <small className="p-error">{input.errorText}</small>}
                     </div>}
             />
@@ -94,8 +97,9 @@ const App: FC = () => {
                     type='password'
                     required
                     minLength={5}
+                    placeholder='password'
                     element={(input, props) => <div>
-                        <input {...props} placeholder='password'/>
+                        <input {...props}/>
                         {input.error && <small className="p-error">{input.errorText}</small>}
                     </div>}
             />
