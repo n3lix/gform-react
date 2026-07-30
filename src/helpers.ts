@@ -1,5 +1,5 @@
 import type {GInputInitialState, GInputState} from './fields';
-import type {GChangeEvent, GDOMElement, IForm, PartialForm} from './form';
+import type {FlatFields, GChangeEvent, GDOMElement, PartialForm} from './form';
 import type {GFormState, InitialState, RawData, RNGFormState, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
 
 /** The subset of form handlers the form-state builders need (avoids importing `useFormHandlers`). */
@@ -10,6 +10,12 @@ type FormHandlers = {
 };
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
+
+export const _qualifyKey = (formKey: string, sectionKey?: string): string =>
+    sectionKey ? `${sectionKey}.${formKey}` : formKey;
+
+export const _fieldKey = (input: Pick<GInputState<any>, 'formKey' | 'sectionKey'>): string =>
+    _qualifyKey(input.formKey, input.sectionKey);
 
 export const defaultFieldProps: { [key: string]: { value: string | number | boolean | File | File[] | null } } = {
     text: {value: ''},
@@ -44,6 +50,7 @@ export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputSt
         checked,
         defaultChecked,
         formKey,
+        sectionKey,
         debounce,
         validatorKey
     } = input;
@@ -52,6 +59,7 @@ export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputSt
 
     return {
         formKey,
+        sectionKey,
         type,
         required,
         max,
@@ -130,7 +138,7 @@ export const _hasSubmitter = (form?: HTMLFormElement | null): boolean => {
     return false;
 };
 
-export const _checkIfFormIsValid = <T>(fields: IForm<T>): boolean => {
+export const _checkIfFormIsValid = (fields: FlatFields): boolean => {
     for (const f in fields) {
         if (fields[f].error) {
             return false;
@@ -139,25 +147,39 @@ export const _checkIfFormIsValid = <T>(fields: IForm<T>): boolean => {
     return true;
 };
 
-export const _toRawData = <T>(fields: IForm<T> & {
-    [key: string]: GInputState<any>
-}, options: ToRawDataOptions<T> = {}): RawData<T> => {
-    const data: { [key: string]: unknown } = {};
+const _groupBySection = <R>(fields: { [key: string]: GInputState<any> }, extract: (field: GInputState<any>) => R): { [key: string]: any } => {
+    const out: { [key: string]: any } = {};
+    for (const key in fields) {
+        const field = fields[key];
+        const value = extract(field);
+        if (field.sectionKey) {
+            (out[field.sectionKey] ??= {})[field.formKey] = value;
+        } else {
+            out[field.formKey] = value;
+        }
+    }
+    return out;
+};
 
+export const _toRawData = <T>(fields: FlatFields<T>, options: ToRawDataOptions<T> = {}): RawData<T> => {
     const {include, exclude, transform} = options;
 
+    const full = _groupBySection(fields, f => f.value);
+
+    let data: { [key: string]: unknown };
     if (include) {
-        include.forEach(key => data[key as string] = fields[key]?.value);
-    } else for (const f in fields) {
-        data[f] = fields[f].value;
+        data = {};
+        include.forEach(key => data[key as string] = full[key as string]);
+    } else {
+        data = full;
     }
 
     exclude?.forEach(key => delete data[key as string]);
 
     if (transform) {
         for (const key in transform) {
-            const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-            data[key] = set(fields[key]?.value);
+            const set = transform[key] as (value: unknown) => any;
+            data[key] = set(full[key]);
         }
     }
 
@@ -166,28 +188,36 @@ export const _toRawData = <T>(fields: IForm<T> & {
 
 export const _toFormData = <T>(
     form: HTMLFormElement | null,
-    fields: IForm<T> & { [key: string]: GInputState<any> },
+    fields: FlatFields<T>,
     options?: ToFormDataOptions<T>,
 ): FormData => {
     if (!form) return new FormData();
 
     const {include, exclude, transform} = options ?? {};
 
-    let formData: FormData = new FormData(form);
+    const formData: FormData = new FormData(form);
+
+    const matchesKey = (key: string, list: (keyof T)[]): boolean => {
+        const dot = key.indexOf('.');
+        const section = dot === -1 ? undefined : key.slice(0, dot);
+        return list.includes(key as keyof T) || (section !== undefined && list.includes(section as keyof T));
+    };
+
     if (include) {
         Array.from(formData.keys()).forEach(key => {
-            if (!include.includes(key as keyof T)) {
-                formData.delete(key);
-            }
+            if (!matchesKey(key, include)) formData.delete(key);
         });
     } else if (exclude) {
-        exclude.forEach(key => formData.delete(key as string));
+        Array.from(formData.keys()).forEach(key => {
+            if (matchesKey(key, exclude)) formData.delete(key);
+        });
     }
 
     if (transform) {
+        const full = _groupBySection(fields, f => f.value);
         for (const key in transform) {
-            const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-            formData.set(key, set(fields[key]?.value));
+            const set = transform[key] as (value: unknown) => any;
+            formData.set(key, set(full[key]));
         }
     }
 
@@ -291,11 +321,11 @@ export const _mergeRefs = <T>(
     };
 };
 
-export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElement: HTMLFormElement, handlers: FormHandlers) => {
+export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElement: HTMLFormElement, handlers: FormHandlers): GFormState<T> => {
     const isFormValid = _checkIfFormIsValid(fields);
 
-    const formState: GFormState<T> = {
-        ...fields,
+    const formState = {
+        ..._groupBySection(fields, f => f),
         isValid: isFormValid,
         isInvalid: !isFormValid,
         toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
@@ -319,14 +349,14 @@ export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElemen
         }, options?: { validate?: boolean }) => _formDispatch(fields, handlers._dispatchChanges, handlers._dispatchAndValidate, changes, options)
     };
 
-    return formState;
+    return formState as unknown as GFormState<T>;
 };
 
-export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], handlers: FormHandlers) => {
+export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], handlers: FormHandlers): RNGFormState<T> => {
     const isFormValid = _checkIfFormIsValid(fields);
 
-    const formState: RNGFormState<T> = {
-        ...fields,
+    const formState = {
+        ..._groupBySection(fields, f => f),
         isValid: isFormValid,
         isInvalid: !isFormValid,
         toRawData: (options?: ToRawDataOptions<T>) => _toRawData(fields, options),
@@ -342,7 +372,28 @@ export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], handlers
         }, options?: { validate?: boolean }) => _formDispatch(fields, handlers._dispatchChanges, handlers._dispatchAndValidate, changes, options)
     };
 
-    return formState;
+    return formState as unknown as RNGFormState<T>;
+};
+
+export const _flattenChanges = (fields: InitialState['fields'], changes: { [key: string]: any }): { [key: string]: any } => {
+    const sections = new Set<string>();
+    for (const key in fields) {
+        const sectionKey = fields[key].sectionKey;
+        if (sectionKey) sections.add(sectionKey);
+    }
+
+    const flat: { [key: string]: any } = {};
+    for (const key in changes) {
+        if (sections.has(key)) {
+            const section = changes[key];
+            for (const formKey in section) {
+                flat[_qualifyKey(formKey, key)] = section[formKey];
+            }
+        } else {
+            flat[key] = changes[key];
+        }
+    }
+    return flat;
 };
 
 const _formDispatch = <T>(
@@ -352,17 +403,17 @@ const _formDispatch = <T>(
     changes: PartialForm<T> & { [key: string]: Partial<GInputState<any>> },
     options?: { validate?: boolean }
 ): void => {
+    const flatChanges = _flattenChanges(fields, changes);
+
     if (options?.validate) {
-        for (const key in changes) {
-            dispatchAndValidate(changes[key], key);
+        for (const key in flatChanges) {
+            dispatchAndValidate(flatChanges[key], key);
         }
         return;
     }
 
     dispatchChanges({
-        fields: _merge<IForm<T> & {
-            [key: string]: GInputState;
-        }>({}, fields, changes)
+        fields: _merge<FlatFields<T>>({}, fields, flatChanges)
     });
 };
 
