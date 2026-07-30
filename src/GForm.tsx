@@ -2,11 +2,10 @@ import React, {forwardRef, useEffect, useMemo, useRef} from "react";
 import type {ForwardedRef, Ref, ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
 import {GFormContextProvider, useFormStore} from "./form-context";
-import {_merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
+import {_flattenChanges, _merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
 import {useFormSelector} from "./hooks";
 import type {GFormState} from "./state";
-import type {GChangeEvent, IForm, PartialForm} from "./form";
-import type {GInputState} from "./fields";
+import type {FlatFields, GChangeEvent, PartialForm} from "./form";
 import type {GValidators} from "./validations";
 
 type FormRendererProps<T> = GFormProps<T> & { formRef: RefObject<HTMLFormElement|null> };
@@ -30,10 +29,10 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
         ...rest
     }: FormRendererProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
         const {handlers, getState, optimized} = useFormStore();
-        const fields = useFormSelector(state => state.fields) as IForm<T>;
+        const flatFields = useFormSelector(state => state.fields) as FlatFields<T>;
 
         const formComponent = useMemo(() => {
-            const state = _buildFormState(fields, formRef.current!, handlers);
+            const state = _buildFormState(flatFields, formRef.current!, handlers);
             const formChildren = typeof children === 'function' ? children(state) : children;
 
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -72,12 +71,12 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
             if (optimized) {
                 if (onChange) {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
-                        handlers._updateInputHandler(state[e.target.name as keyof T], e, unknown);
+                        handlers._updateInputHandler(flatFields[e.target.name], e, unknown);
                         onChange(state, e);
                     };
                 } else {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
-                        handlers._updateInputHandler(state[e.target.name as keyof T], e, unknown);
+                        handlers._updateInputHandler(flatFields[e.target.name], e, unknown);
                     };
                 }
                 return (
@@ -86,10 +85,10 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
                         onPaste={_onPaste}
                         onKeyDown={_onKeyDown}
                         onKeyUp={_onKeyUp}
-                        onBlur={(e: GChangeEvent<HTMLFormElement>) => handlers._blurHandler(state[e.target.name as keyof T], e)}
+                        onBlur={(e: GChangeEvent<HTMLFormElement>) => handlers._blurHandler(flatFields[e.target.name], e)}
                         onInvalid={(e: ChangeEvent<HTMLFormElement>) => {
                             e.preventDefault(); // hide default browser validation tooltip
-                            handlers._viHandler(state[e.target.name as keyof T], e);
+                            handlers._viHandler(flatFields[e.target.name], e);
                         }}
                         onChange={_onChange}
                         onSubmit={_onSubmit}
@@ -115,7 +114,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
                     {formChildren}
                 </form>
             );
-        }, [children, fields]);
+        }, [children, flatFields]);
 
         useEffect(() => {
             const initialStateFields = getState<T>().fields;
@@ -135,12 +134,12 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
                 const changes = onInit(state);
                 if (changes) {
                     const _handler = (_c: void | PartialForm<T>) => {
+                        if (!_c) return;
+                        const flatChanges = _flattenChanges(initialStateFields, _c);
                         handlers._dispatchChanges({
-                            fields: _merge<IForm<T> & {
-                                [key: string]: GInputState;
-                            }>({}, state, _c)
+                            fields: _merge<FlatFields<T>>({}, initialStateFields, flatChanges)
                         });
-                        if (_c) handlers._seedInitial(Object.keys(_c));
+                        handlers._seedInitial(Object.keys(flatChanges));
                     };
                     if (changes instanceof Promise) {
                         changes.then(_handler);

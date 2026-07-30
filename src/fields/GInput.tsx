@@ -1,6 +1,6 @@
 import React, {forwardRef, memo, type ReactNode, useEffect, useMemo, useRef} from 'react';
 
-import {_debounce, _makeSelectFields} from '../helpers';
+import {_debounce, _makeSelectFields, _qualifyKey} from '../helpers';
 import {useFormStore} from "../form-context";
 import {useFormSelector} from "../hooks";
 import type {GInputProps, GInputState, GElementProps} from '.';
@@ -13,6 +13,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
 
     const {
         formKey,
+        sectionKey,
         element,
         title,
         type = 'text',
@@ -32,14 +33,15 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
         value,
         ...rest
     } = props;
-    if (!store.getState().fields[formKey]) {
+    const key = _qualifyKey(formKey, sectionKey);
+    if (!store.getState().fields[key]) {
         if (__DEBUG__) {
-            console.log('[GInput] -', 'registering input', `(${formKey})`, props);
+            console.log('[GInput] -', 'registering input', `(${key})`, props);
         }
         store.registerField(props);
     }
 
-    const inputState = useFormSelector(state => state.fields[formKey]);
+    const inputState = useFormSelector(state => state.fields[key]);
     const _fetchDeps = useFormSelector(_makeSelectFields(fetchDeps));
     const _validatorsDeps = useFormSelector(_makeSelectFields(validatorDeps));
     const mounted = useRef(false);
@@ -49,13 +51,13 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
         // custom/async validation (with the full field set), syncs native validity so an
         // invalid initial value blocks submission, and only re-renders if the result changes
         if (inputState.value) {
-            store.handlers._validateInitialField(inputState, formKey, store.getInputElement(formKey));
+            store.handlers._validateInitialField(inputState, key, store.getInputElement(key));
         }
         return () => {
             if (__DEBUG__) {
-                console.log('[GInput] -', 'unregistering input', `(${formKey})`);
+                console.log('[GInput] -', 'unregistering input', `(${key})`);
             }
-            store.unregisterField(formKey);
+            store.unregisterField(key);
         };
     }, []);
 
@@ -73,7 +75,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
         const _props = {
             ...rest,
             type,
-            name: formKey,
+            name: key,
             value: isFile ? undefined : value,
             checked: isFile ? undefined : checked,
             ref,
@@ -134,9 +136,9 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
             _debounce(debounce, `${inputState.gid}-fetch`).then(() => {
                 const res = fetch(inputState, store.getState().fields);
                 if (res instanceof Promise) {
-                    res.then((state) => state && store.handlers._dispatchChanges(state, formKey));
+                    res.then((state) => state && store.handlers._dispatchChanges(state, key));
                 } else if (res) {
-                    store.handlers._dispatchChanges(res, formKey);
+                    store.handlers._dispatchChanges(res, key);
                 }
             });
         }
@@ -153,7 +155,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
             return;
         }
         if (!inputState.touched) return;
-        const inputElement = store.getInputElement(formKey);
+        const inputElement = store.getInputElement(key);
 
         if (inputElement) {
             store.handlers._viHandler(inputState, { target: inputElement } as unknown as GFormEvent);
@@ -171,7 +173,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
     useEffect(() => {
         if (type !== 'file' || typeof DataTransfer === 'undefined') return;
 
-        const el = store.getInputElement(formKey) as HTMLInputElement | undefined;
+        const el = store.getInputElement(key) as HTMLInputElement | undefined;
         if (!el) return;
 
         const next: File[] = inputState.value == null

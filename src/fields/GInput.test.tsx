@@ -512,3 +512,23 @@ describe('GInput element control types', () => {
         expect(api!.bio.value).toBe('hello world');
     });
 });
+
+describe('GInput sectionKey', () => {
+    it('renders name="formKey" unchanged when sectionKey is absent (no regression)', () => {
+        render(
+            <GForm>
+                <GInput formKey="email" data-testid="i"/>
+            </GForm>
+        );
+        expect((screen.getByTestId('i') as HTMLInputElement).name).toBe('email');
+    });
+
+    it('renders name="sectionKey.formKey" when sectionKey is set', () => {
+        render(
+            <GForm>
+                <GInput formKey="email" sectionKey="billing" data-testid="i"/>
+            </GForm>
+        );
+        expect((screen.getByTestId('i') as HTMLInputElement).name).toBe('billing.email');
+    });
+});

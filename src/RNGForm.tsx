@@ -1,13 +1,12 @@
 import {useMemo, useEffect, forwardRef} from "react";
 import type {ReactNode, FC, ReactElement, Ref, RefObject} from "react";
 
-import {_merge, _buildRNFormState} from "./helpers";
+import {_flattenChanges, _merge, _buildRNFormState} from "./helpers";
 import {GFormContextProvider, useFormStore} from "./form-context";
 import {useFormSelector} from "./hooks";
 import type {RNGFormState} from "./state";
 import type {GValidators} from "./validations";
-import type {IForm, PartialForm} from "./form";
-import type {GInputState} from "./fields";
+import type {FlatFields, PartialForm} from "./form";
 
 const FormRenderer = forwardRef<any, RNGFormProps<any>>(
     <T, >({
@@ -18,10 +17,10 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
         ...rest
     }: RNGFormProps<T>, ref: React.Ref<any>) => {
         const {handlers, getState} = useFormStore();
-        const fields = useFormSelector(state => state.fields) as IForm<T>;
+        const flatFields = useFormSelector(state => state.fields) as FlatFields<T>;
 
         const formComponent = useMemo(() => {
-            const state = _buildRNFormState(fields, handlers);
+            const state = _buildRNFormState(flatFields, handlers);
 
             if (stateRef) stateRef.current = state;
             const formChildren = typeof children === 'function' ? children(state) : children;
@@ -31,7 +30,7 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
                     {formChildren}
                 </El>
             );
-        }, [children, fields]);
+        }, [children, flatFields]);
 
         useEffect(() => {
             const initialStateFields = getState<T>().fields;
@@ -40,11 +39,13 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
             if (onInit) {
                 const changes = onInit(state);
                 if (changes) {
-                    const _handler = (_c: void | PartialForm<T>) => handlers._dispatchChanges({
-                        fields: _merge<IForm<T> & {
-                            [key: string]: GInputState;
-                        }>({}, state, _c)
-                    });
+                    const _handler = (_c: void | PartialForm<T>) => {
+                        if (!_c) return;
+                        const flatChanges = _flattenChanges(initialStateFields, _c);
+                        handlers._dispatchChanges({
+                            fields: _merge<FlatFields<T>>({}, initialStateFields, flatChanges)
+                        });
+                    };
                     if (changes instanceof Promise) {
                         changes.then(_handler);
                     } else _handler(changes);

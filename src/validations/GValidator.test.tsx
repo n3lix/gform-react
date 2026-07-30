@@ -159,7 +159,7 @@ const standardSchema = (validate: (value: any) => any): StandardSchemaV1 => ({
 });
 
 const fieldsOf = (values: Record<string, any>) =>
-    Object.fromEntries(Object.entries(values).map(([k, v]) => [k, { value: v }])) as any;
+    Object.fromEntries(Object.entries(values).map(([k, v]) => [k, { formKey: k, value: v }])) as any;
 
 describe('GValidator withSchema (sync, Standard Schema)', () => {
     it('routes a leaf issue to the matching field and sets errorText', () => {

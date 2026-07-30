@@ -1,4 +1,4 @@
-import {_checkResult, _debounce, _extractValue, _findValidityKey, _manualValidityKey} from "./helpers";
+import {_checkResult, _debounce, _extractValue, _fieldKey, _findValidityKey, _manualValidityKey} from "./helpers";
 import {type GInputValidator, type GValidators} from "./validations";
 import type {GInputState} from "./fields";
 import type {GChangeEvent, GDOMElement, GFocusEvent, GFormEvent, GInvalidEvent} from "./form";
@@ -48,18 +48,18 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             _checkInputManually(input);
         }
 
-        _dispatchChanges(input, input.formKey);
+        _dispatchChanges(input, _fieldKey(input));
     };
 
     const _blurHandler = (input: GInputState<any>, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
         if (!input) return;
 
-        const inputValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        const inputValidator = validators[input.validatorKey || _fieldKey(input)] || validators['*'];
         if (inputValidator) {
             if (inputValidator.asyncHandlers.length && input._validatedValue !== undefined && Object.is(input.value, input._validatedValue)) {
                 const wasTouched = input.touched;
                 input.touched = true;
-                if (!wasTouched) _dispatchChanges(input, input.formKey); // still propagate the one-time touched flip
+                if (!wasTouched) _dispatchChanges(input, _fieldKey(input)); // still propagate the one-time touched flip
                 return;
             }
             _viHandler(input, e);
@@ -73,7 +73,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         input.checkValidity = _checkValidityFromError;
         if (!input.touched) {
             input.touched = true;
-            _dispatchChanges(input, input.formKey);
+            _dispatchChanges(input, _fieldKey(input));
         }
     };
 
@@ -101,7 +101,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         const validityKey = _manualValidityKey(input);
         if (!validityKey) return;
 
-        const inputValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        const inputValidator = validators[input.validatorKey || _fieldKey(input)] || validators['*'];
         if (!inputValidator) return;
 
         for (const index in inputValidator.constraintHandlers) {
@@ -131,7 +131,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
      * @param setValidity
      */
     const _validateInput = (input: GInputState, validityKey?: keyof ValidityState, setValidity?: (e: string) => void): void => {
-        const inputValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        const inputValidator = validators[input.validatorKey || _fieldKey(input)] || validators['*'];
         if (__DEBUG__) {
             console.log('[validateInput] -', 'validating input:', input.formKey, `(${validityKey ? validityKey : 'custom'})`);
         }
@@ -221,7 +221,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
 
         for (const key in fields) {
             const input = fields[key];
-            const validator = validators[input.validatorKey || input.formKey] || validators['*'];
+            const validator = validators[input.validatorKey || _fieldKey(input)] || validators['*'];
 
             /* rerun validation only where its needed but still track every field's error below.
             *  - no validator: nothing to run
@@ -335,7 +335,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
                     }
                     if (!input.error) input.errorText = '';
 
-                    _dispatchChanges({error: input.error, errorText: input.errorText}, input.formKey);
+                    _dispatchChanges({error: input.error, errorText: input.errorText}, _fieldKey(input));
                     if (setValidity) {
                         setValidity(input.errorText);
                     }

@@ -1,7 +1,7 @@
 import {forwardRef, memo, type ReactNode, useEffect, useMemo, useRef} from 'react';
 import {TextInput} from 'react-native';
 
-import {_debounce, _makeSelectFields} from '../helpers';
+import {_debounce, _makeSelectFields, _qualifyKey} from '../helpers';
 import {useFormStore} from "../form-context";
 import {useFormSelector} from "../hooks";
 import type {GInputState, RNGInputProps} from '.';
@@ -11,6 +11,7 @@ const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
 
     const {
         formKey,
+        sectionKey,
         element,
         type,
         fetch,
@@ -25,14 +26,15 @@ const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
         value,
         ...rest
     } = props;
-    if (!store.getState().fields[formKey]) {
+    const key = _qualifyKey(formKey, sectionKey);
+    if (!store.getState().fields[key]) {
         if (__DEBUG__) {
-            console.log('[GInput] -', 'registering input', `(${formKey})`, props);
+            console.log('[GInput] -', 'registering input', `(${key})`, props);
         }
         store.registerField(props);
     }
 
-    const inputState = useFormSelector(state => state.fields[formKey]);
+    const inputState = useFormSelector(state => state.fields[key]);
     const _fetchDeps = useFormSelector(_makeSelectFields(fetchDeps));
     const _validatorsDeps = useFormSelector(_makeSelectFields(validatorDeps));
     const mounted = useRef(false);
@@ -42,13 +44,13 @@ const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
         // custom/async validation and only re-renders if it changes (no native element in RN,
         // so getInputElement returns undefined and setCustomValidity is skipped)
         if (inputState.value) {
-            store.handlers._validateInitialField(inputState, formKey, store.getInputElement(formKey));
+            store.handlers._validateInitialField(inputState, key, store.getInputElement(key));
         }
         return () => {
             if (__DEBUG__) {
-                console.log('[GInput] -', 'unregistering input', `(${formKey})`);
+                console.log('[GInput] -', 'unregistering input', `(${key})`);
             }
-            store.unregisterField(formKey);
+            store.unregisterField(key);
         };
     }, []);
 
@@ -94,9 +96,9 @@ const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
             _debounce(debounce, `${inputState.gid}-fetch`).then(() => {
                 const res = fetch(inputState, store.getState().fields);
                 if (res instanceof Promise) {
-                    res.then((state) => state && store.handlers._dispatchChanges(state, formKey));
+                    res.then((state) => state && store.handlers._dispatchChanges(state, key));
                 } else if (res) {
-                    store.handlers._dispatchChanges(res, formKey);
+                    store.handlers._dispatchChanges(res, key);
                 }
             });
         }

@@ -1,13 +1,13 @@
-import type {GDOMElement, IForm, PartialForm} from "./form";
+import type {FlatFields, GDOMElement, GSection, IForm, PartialForm} from "./form";
 import type {GInputProps, GInputState, RNGInputProps} from "./fields";
 import {useFormHandlers} from "./useFormHandlers";
 
 export type RawData<T> = {
-    [key in keyof T]: T[key];
+    [key in keyof T]: T[key] extends GSection<infer F> ? F : T[key];
 };
 
 export type InitialState<T = any> = {
-    fields: IForm<T> & { [key: string]: GInputState<any> };
+    fields: FlatFields<T>;
 };
 
 /**
@@ -61,9 +61,15 @@ export type ToURLSearchParamsOptions<T> = {
      *     tags: (arr) => arr.join(","),
      *   }
      * }
+     *
+     * for a `GSection<...>` key, the function receives the whole section's raw data
+     * (`RawData<F>`) rather than a single field's value — sections are transformed as a unit,
+     * per-field transforms inside a section are not supported.
      */
     transform?: {
-        [key in keyof T]?: (value: GFormState<T>[key]["value"]) => any;
+        [key in keyof T]?: T[key] extends GSection<infer F>
+            ? (value: RawData<F>) => any
+            : (value: T[key]) => any;
     };
 };
 

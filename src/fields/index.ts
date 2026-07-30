@@ -1,5 +1,4 @@
 import type {InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, HTMLInputTypeAttribute, ReactNode} from 'react';
-import type { IForm } from '../form';
 import type { TextInputProps } from 'react-native';
 
 export {GInput} from './GInput';
@@ -8,6 +7,13 @@ export {RNGInput} from './RNGInput';
 export type BaseGenericFieldProps = {
     /** the key which is used to identify the input */
     formKey: string;
+    /**
+     * groups this input under a named section in the exposed form state
+     * (`state[sectionKey][formKey]`, `toRawData()`, `dispatchChanges()`). `formKey` only needs to
+     * be unique within its section, not across the whole form. Pair with a `GSection<...>`-typed
+     * field in the `GForm<T>` interface for full type safety.
+     */
+    sectionKey?: string;
     /** refer to another input validator */
     validatorKey?: string;
     type?: HTMLInputTypeAttribute | undefined;
@@ -65,7 +71,7 @@ type RNGInputElementHandler<T> = (input: GInputState<T>, props: TextInputProps) 
 export type RNGInputProps = BaseGenericFieldProps & TextInputProps & {
     defaultValue?: string | number;
     /**a function that gets called once the input has initialized and may have deps (see `fetchDeps`) */
-    fetch?: (state: GInputStateMutable, fields: IForm & { [key: string]: GInputStateMutable }) => void | Partial<GInputStateMutable> | Promise<void | Partial<GInputStateMutable>>;
+    fetch?: (state: GInputStateMutable, fields: { [key: string]: GInputStateMutable }) => void | Partial<GInputStateMutable> | Promise<void | Partial<GInputStateMutable>>;
     /**an array of input keys that once one the values have changed `fetch` will re-run */
     fetchDeps?: string[];
     /**
@@ -102,7 +108,7 @@ export type GInputProps = BaseGenericFieldProps & Omit<InputHTMLAttributes<HTMLI
     defaultValue?: string | number;
     checked?: boolean;
     /**a function that gets called once the input has initialized and may have deps (see `fetchDeps`) */
-    fetch?: (state: GInputStateMutable, fields: IForm & { [key: string]: GInputStateMutable }) => void | Partial<GInputStateMutable> | Promise<void | Partial<GInputStateMutable>>;
+    fetch?: (state: GInputStateMutable, fields: { [key: string]: GInputStateMutable }) => void | Partial<GInputStateMutable> | Promise<void | Partial<GInputStateMutable>>;
     /**an array of input keys that once one the values have changed `fetch` will re-run */
     fetchDeps?: string[];
     /**

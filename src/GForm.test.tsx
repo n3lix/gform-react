@@ -7,6 +7,7 @@ import { GInput } from './fields/GInput';
 import { GValidator } from './validations';
 import type { GValidators } from './validations';
 import type { GFormState } from './state';
+import type { GSection } from './form';
 
 describe('GForm', () => {
     it('renders children correctly', () => {
@@ -1057,5 +1058,170 @@ describe('GForm submit-time validation gating (custom rules with no native const
         fireEvent.submit(screen.getByRole('button'));
         expect(onSubmit).not.toHaveBeenCalled();
         await waitFor(() => expect(screen.getByTestId('email-err')).toHaveTextContent('required'));
+    });
+});
+
+describe('GForm sections (sectionKey)', () => {
+    type AddressForm = { email: string; billing: GSection<{ email: string; zip: string }>; shipping: GSection<{ email: string; zip: string }> };
+
+    it('reuses the same formKey across sections independently, nested under state[sectionKey][formKey]', () => {
+        let latest: GFormState<AddressForm> | undefined;
+        render(
+            <GForm<AddressForm>>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <>
+                            <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+                            <GInput formKey="email" sectionKey="shipping" data-testid="shipping-email"/>
+                        </>
+                    );
+                }}
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'billing@x.com'}});
+        expect(latest!.billing.email.value).toBe('billing@x.com');
+        expect(latest!.shipping.email.value).toBe(''); // untouched, independent of billing
+
+        fireEvent.change(screen.getByTestId('shipping-email'), {target: {value: 'shipping@x.com'}});
+        expect(latest!.billing.email.value).toBe('billing@x.com'); // unaffected by shipping's edit
+        expect(latest!.shipping.email.value).toBe('shipping@x.com');
+    });
+
+    it('toRawData nests sectioned fields and supports include/exclude by section name or flat key', () => {
+        let latest: GFormState<AddressForm> | undefined;
+        render(
+            <GForm<AddressForm>>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <>
+                            <GInput formKey="email" data-testid="email"/>
+                            <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+                            <GInput formKey="zip" sectionKey="billing" data-testid="billing-zip"/>
+                        </>
+                    );
+                }}
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('email'), {target: {value: 'top@x.com'}});
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+        fireEvent.change(screen.getByTestId('billing-zip'), {target: {value: '12345'}});
+
+        expect(latest!.toRawData()).toEqual({email: 'top@x.com', billing: {email: 'b@x.com', zip: '12345'}});
+        expect(latest!.toRawData({include: ['billing']})).toEqual({billing: {email: 'b@x.com', zip: '12345'}});
+        expect(latest!.toRawData({include: ['email']})).toEqual({email: 'top@x.com'});
+        expect(latest!.toRawData({exclude: ['billing']})).toEqual({email: 'top@x.com'});
+    });
+
+    it('toFormData serializes a sectioned field as "section.formKey" and honors include/exclude by section prefix', () => {
+        let latest: GFormState<AddressForm> | undefined;
+        render(
+            <GForm<AddressForm>>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <>
+                            <GInput formKey="email" data-testid="email"/>
+                            <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+                        </>
+                    );
+                }}
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('email'), {target: {value: 'top@x.com'}});
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+
+        const fd = latest!.toFormData();
+        expect(fd.get('email')).toBe('top@x.com');
+        expect(fd.get('billing.email')).toBe('b@x.com');
+
+        const excluded = latest!.toFormData({exclude: ['billing']});
+        expect(excluded.get('billing.email')).toBeNull();
+        expect(excluded.get('email')).toBe('top@x.com');
+
+        const included = latest!.toFormData({include: ['billing']});
+        expect(included.get('billing.email')).toBe('b@x.com');
+        expect(included.get('email')).toBeNull();
+    });
+
+    it('dispatchChanges accepts a nested section payload and revalidates it with { validate: true }', () => {
+        const validators: GValidators<AddressForm> = {'billing.email': new GValidator().withRequiredMessage('Required')};
+        let latest: GFormState<AddressForm> | undefined;
+        render(
+            <GForm<AddressForm> validators={validators}>
+                {(state) => {
+                    latest = state;
+                    return <GInput formKey="email" sectionKey="billing" required/>;
+                }}
+            </GForm>
+        );
+
+        act(() => {
+            latest!.dispatchChanges({billing: {email: {value: ''}}}, {validate: true});
+        });
+        expect(latest!.billing.email.error).toBe(true);
+        expect(latest!.billing.email.errorText).toBe('Required');
+
+        act(() => {
+            latest!.dispatchChanges({billing: {email: {value: 'b@x.com'}}}, {validate: true});
+        });
+        expect(latest!.billing.email.value).toBe('b@x.com');
+        expect(latest!.billing.email.error).toBe(false);
+    });
+
+    it('a validator keyed by a plain formKey does not leak into a same-named sectioned field', () => {
+        const validators: GValidators<AddressForm> = {
+            // a bare "email" rule must never be selected for billing.email (no validatorKey, no
+            // "billing.email" entry, no '*' — nothing should resolve for it)
+            email: new GValidator().withCustomValidation(() => { throw new Error('should not run for a sectioned field'); }),
+        };
+        render(
+            <GForm<AddressForm> validators={validators}>
+                <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+            </GForm>
+        );
+
+        expect(() => fireEvent.blur(screen.getByTestId('billing-email'))).not.toThrow();
+    });
+
+    it('validatorKey shares one rule across sections', () => {
+        const validators: GValidators<AddressForm> = {shared: new GValidator().withRequiredMessage('Required')};
+        const withError = (testid: string) => (input: {error: boolean; errorText: string}, props: any) => (
+            <div>
+                <input {...props} data-testid={testid}/>
+                {input.error && <span data-testid={`${testid}-err`}>{input.errorText}</span>}
+            </div>
+        );
+        render(
+            <GForm<AddressForm> validators={validators}>
+                <GInput formKey="email" sectionKey="billing" validatorKey="shared" required element={withError('billing-email')}/>
+                <GInput formKey="email" sectionKey="shipping" validatorKey="shared" required element={withError('shipping-email')}/>
+            </GForm>
+        );
+
+        fireEvent.blur(screen.getByTestId('billing-email'));
+        expect(screen.getByTestId('billing-email-err')).toHaveTextContent('Required');
+        fireEvent.blur(screen.getByTestId('shipping-email'));
+        expect(screen.getByTestId('shipping-email-err')).toHaveTextContent('Required');
+    });
+
+    it('optimized mode delegates change/blur correctly for a sectioned field', () => {
+        const onSubmit = jest.fn();
+        render(
+            <GForm<AddressForm> optimized onSubmit={onSubmit}>
+                <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+                <button type="submit">Submit</button>
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+        fireEvent.submit(screen.getByRole('button'));
+
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+        expect(onSubmit.mock.calls[0][0].billing.email.value).toBe('b@x.com');
     });
 });

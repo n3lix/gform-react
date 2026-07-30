@@ -6,7 +6,7 @@ import type {InitialState, Store} from "./state";
 import type {GValidators} from "./validations";
 import type {GInputInitialState, GInputProps, GInputState, RNGInputProps} from './fields';
 import type {GDOMElement} from './form';
-import {_buildInputInitialValues, _clearDebounce} from "./helpers";
+import {_buildInputInitialValues, _clearDebounce, _qualifyKey} from "./helpers";
 
 const GFormContext = createContext<Store>({} as Store);
 
@@ -54,10 +54,11 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
         /* mutate stateRef without notifying listeners
          it is safe because this field didn't exist (no component was subscribed to it) */
         const prev = stateRef.current;
+        const key = _qualifyKey(config.formKey, config.sectionKey);
 
-        if (prev.fields[config.formKey]) {
+        if (prev.fields[key]) {
             if (__DEV__) {
-                console.warn(`DEV ONLY - [Duplicate Keys] - field with key '${config.formKey}' already defined.`);
+                console.warn(`DEV ONLY - [Duplicate Keys] - field with key '${key}' (formKey '${config.formKey}'${config.sectionKey ? ` in section '${config.sectionKey}'` : ''}) already defined.`);
             }
             return;
         }
@@ -65,8 +66,8 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
         const inputState = _buildInputInitialValues(config as GInputInitialState);
 
         inputState.checkValidity = () => {
-            const input = stateRef.current.fields[inputState.formKey] as GInputState<any>;
-            const el = getInputElement(inputState.formKey);
+            const input = stateRef.current.fields[key] as GInputState<any>;
+            const el = getInputElement(key);
             // read `validity.valid` (not `checkValidity()`) so the native check fires no `invalid`
             // event — validation runs through exactly one path: the explicit `_viHandler` below.
             if (el && !el.validity.valid) return false; // native first (RN skips)
@@ -95,12 +96,12 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
             ...prev,
             fields: {
                 ...prev.fields,
-                [config.formKey]: {
+                [key]: {
                     ...inputState,
                     dispatchChanges: (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
                         options?.validate
-                            ? handlers._dispatchAndValidate(changes, config.formKey)
-                            : handlers._dispatchChanges(changes, config.formKey)
+                            ? handlers._dispatchAndValidate(changes, key)
+                            : handlers._dispatchChanges(changes, key)
                 }
             }
         };
