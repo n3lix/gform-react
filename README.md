@@ -38,6 +38,9 @@ library.</p>
 - **Custom & async validation** - add any rule via `withCustomValidation`, including asynchronous server-side checks with `withCustomValidationAsync`
 - **Cross-field validation** - re-validate a field when another changes (e.g. confirm-password) via `validatorDeps`
 - **Deeply Nested Forms** - structure forms however you like, split a big form into focused and reusable components
+- **Sections** - group inputs under a `sectionKey` so `formKey` only needs to be unique within its
+  group (e.g. reusable billing/shipping address blocks); the form state, `toRawData()`, and
+  `dispatchChanges()` nest sectioned fields under `state[sectionKey][formKey]`
 - **Dynamic fields** - add or remove fields at runtime without losing state
 - **Native `<form>` actions** - fully supports browser‑level form submission, including action, method, and HTTP
   navigation, with no JavaScript required
@@ -190,6 +193,90 @@ const validators: GValidators<SignUpForm> = {
     '*': new GValidator().withSchemaAsync(schema),
 };
 ```
+
+## Sections
+
+Group inputs under a `sectionKey` when the same `formKey` needs to repeat across a form — billing
+vs. shipping addresses, a list of contacts, and so on. `formKey` only needs to be unique *within*
+its section. Type a section as a **plain nested object** in the form's interface — that's all it
+takes to get it (and `toRawData()`) nested and type-safe:
+
+```tsx
+import {GForm, GInput, GValidator, type GValidators} from "gform-react";
+
+interface CheckoutForm {
+    couponCode: string;
+    billing: { email: string; zip: string };
+    shipping: { email: string; zip: string };
+}
+
+const validators: GValidators<CheckoutForm> = {
+    '*': new GValidator().withRequiredMessage('required field'),
+};
+
+const renderField = (input, props) => (
+    <div><input {...props}/>{input.error && <small className="p-error">{input.errorText}</small>}</div>
+);
+
+const Checkout = () => (
+    <GForm<CheckoutForm> validators={validators}
+                         onSubmit={(state, e) => { e.preventDefault(); console.log(state.toRawData()); }}>
+        {(state) => (
+            <>
+                <fieldset>
+                    <legend>Billing</legend>
+                    <GInput formKey="email" sectionKey="billing" element={renderField}/>
+                    <GInput formKey="zip" sectionKey="billing" element={renderField}/>
+                </fieldset>
+                <fieldset>
+                    <legend>Shipping</legend>
+                    <GInput formKey="email" sectionKey="shipping" element={renderField}/>
+                    <GInput formKey="zip" sectionKey="shipping" element={renderField}/>
+                </fieldset>
+                <button disabled={state.isInvalid}>Submit</button>
+            </>
+        )}
+    </GForm>
+);
+// state.toRawData() => { couponCode, billing: { email, zip }, shipping: { email, zip } }
+// state.billing.email.value / state.shipping.email.value — read independently
+```
+
+A sectioned input's DOM `name` is `"sectionKey.formKey"` (e.g. `"billing.email"`), so
+`toFormData()` / a Server Action reads it the same way: `formData.get('billing.email')`.
+
+A plain-object key in the interface always means *section*. In the rare case a single field's
+**value** is an object (set programmatically via `dispatchChanges`), wrap its shape in
+`GFieldValue<...>` so it types as one field instead — `File`, `File[]`, `Date`, and arrays are
+recognized as field values automatically:
+
+```ts
+import type {GFieldValue} from "gform-react";
+
+interface MapForm {
+    label: string;                                        // field
+    pin: GFieldValue<{ lat: number; lng: number }>;       // one field with an object value
+    address: { street: string; city: string };            // section
+}
+```
+
+### Subscribing to a section — `useFormSectionSelector`
+
+Any component inside the form can subscribe to a whole section. The returned object is
+referentially stable — the component re-renders when one of the section's fields changes and stays
+untouched by edits anywhere else in the form:
+
+```tsx
+import {useFormSectionSelector} from "gform-react";
+
+const BillingPreview = () => {
+    const billing = useFormSectionSelector<{ email: string; zip: string }>('billing');
+    return <span>{billing.email?.value} / {billing.zip?.value}</span>;
+};
+```
+
+For a *single* field (sectioned or not) keep using `useFormSelector`; a sectioned field lives
+under its qualified key there: `useFormSelector(state => state.fields['billing.email'])`.
 
 ## Installation
 

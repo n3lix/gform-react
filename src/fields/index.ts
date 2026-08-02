@@ -10,8 +10,9 @@ export type BaseGenericFieldProps = {
     /**
      * groups this input under a named section in the exposed form state
      * (`state[sectionKey][formKey]`, `toRawData()`, `dispatchChanges()`). `formKey` only needs to
-     * be unique within its section, not across the whole form. Pair with a `GSection<...>`-typed
-     * field in the `GForm<T>` interface for full type safety.
+     * be unique within its section, not across the whole form. Type the section as a plain
+     * nested object in the `GForm<T>` interface for full type safety (an object-*valued* single
+     * field is expressed with `GFieldValue<...>` instead).
      */
     sectionKey?: string;
     /** refer to another input validator */

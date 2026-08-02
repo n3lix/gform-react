@@ -11,6 +11,12 @@ import {InitialState} from "../state";
  * selected value changes (compared with `Object.is`), so a component watching one field is not
  * re-rendered by edits to unrelated fields.
  *
+ * `fields` is the **flat** internal store: a sectioned field (see `GInput`'s `sectionKey`) lives
+ * under its qualified key — `state.fields['billing.street']`, *not* `state.fields.billing.street`.
+ * annotate the selector's parameter with `InitialState<YourForm>` to get those keys
+ * compile-checked. to select a whole section as one object, use `useFormSectionSelector` instead
+ * (hand-building the object here would defeat the `Object.is` bail-out).
+ *
  * must be called inside a `GForm` / `RNGForm` subtree — it reads the form store from context and
  * throws if used outside one. SSR-safe (the server snapshot uses the same selector).
  *
@@ -28,6 +34,11 @@ import {InitialState} from "../state";
  * @example
  * // derive a primitive to stay referentially stable
  * const isCityInvalid = useFormSelector(state => state.fields.city?.error ?? false);
+ *
+ * @example
+ * // a sectioned field lives under its qualified key; annotating with InitialState<T> makes the
+ * // key compile-checked (a typo or a bare section name fails to compile)
+ * const street = useFormSelector((state: InitialState<CheckoutForm>) => state.fields['billing.street']);
  */
 export const useFormSelector = <T extends any>(selector: (state: InitialState) => T): T => {
     const store = useFormStore();

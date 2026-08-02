@@ -161,7 +161,7 @@ const _groupBySection = <R>(fields: { [key: string]: GInputState<any> }, extract
     return out;
 };
 
-export const _toRawData = <T>(fields: FlatFields<T>, options: ToRawDataOptions<T> = {}): RawData<T> => {
+export const _toRawData = <T>(fields: FlatFields, options: ToRawDataOptions<T> = {}): RawData<T> => {
     const {include, exclude, transform} = options;
 
     const full = _groupBySection(fields, f => f.value);
@@ -188,7 +188,7 @@ export const _toRawData = <T>(fields: FlatFields<T>, options: ToRawDataOptions<T
 
 export const _toFormData = <T>(
     form: HTMLFormElement | null,
-    fields: FlatFields<T>,
+    fields: FlatFields,
     options?: ToFormDataOptions<T>,
 ): FormData => {
     if (!form) return new FormData();
@@ -225,26 +225,8 @@ export const _toFormData = <T>(
 };
 
 export function _toURLSearchParams<T>(this: GFormState<T>, options?: ToURLSearchParamsOptions<T>): URLSearchParams {
-    let data: Record<keyof T, any>;
-    if (options) {
-        const {exclude, include, transform} = options;
-        if (include) {
-            data = {} as Record<keyof T, any>;
-            include.forEach(key => (data[key] = this[key]?.value));
-        } else {
-            data = this.toRawData();
-            exclude?.forEach(key => delete data[key]);
-        }
-
-        if (transform) {
-            for (const key in transform) {
-                const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-                (data[key] = set(this[key]?.value));
-            }
-        }
-    } else data = this.toRawData();
-
-    return new URLSearchParams(data); // this is ok because URLSearchParams will stringify the values (boolean/number)
+    const data = this.toRawData(options);
+    return new URLSearchParams(data as Record<string, any>); // URLSearchParams stringifies values (boolean/number)
 }
 
 const _debounceTimers: { [key: string]: ReturnType<typeof setTimeout> } = {};
@@ -321,7 +303,7 @@ export const _mergeRefs = <T>(
     };
 };
 
-export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElement: HTMLFormElement, handlers: FormHandlers): GFormState<T> => {
+export const _buildFormState = <T = any>(fields: FlatFields, formElement: HTMLFormElement, handlers: FormHandlers): GFormState<T> => {
     const isFormValid = _checkIfFormIsValid(fields);
 
     const formState = {
@@ -352,7 +334,7 @@ export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElemen
     return formState as unknown as GFormState<T>;
 };
 
-export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], handlers: FormHandlers): RNGFormState<T> => {
+export const _buildRNFormState = <T = any>(fields: FlatFields, handlers: FormHandlers): RNGFormState<T> => {
     const isFormValid = _checkIfFormIsValid(fields);
 
     const formState = {
@@ -397,7 +379,7 @@ export const _flattenChanges = (fields: InitialState['fields'], changes: { [key:
 };
 
 const _formDispatch = <T>(
-    fields: InitialState<T>['fields'],
+    fields: FlatFields,
     dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void,
     dispatchAndValidate: (changes: Partial<GInputState<any>>, key: string) => void,
     changes: PartialForm<T> & { [key: string]: Partial<GInputState<any>> },
@@ -413,7 +395,7 @@ const _formDispatch = <T>(
     }
 
     dispatchChanges({
-        fields: _merge<FlatFields<T>>({}, fields, flatChanges)
+        fields: _merge<FlatFields>({}, fields, flatChanges)
     });
 };
 

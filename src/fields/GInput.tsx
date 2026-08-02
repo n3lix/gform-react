@@ -53,6 +53,9 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
         if (inputState.value) {
             store.handlers._validateInitialField(inputState, key, store.getInputElement(key));
         }
+
+        if (sectionKey) store.notify();
+
         return () => {
             if (__DEBUG__) {
                 console.log('[GInput] -', 'unregistering input', `(${key})`);
@@ -158,7 +161,7 @@ const _GInput = forwardRef<HTMLInputElement, GInputProps>((props, ref) => {
         const inputElement = store.getInputElement(key);
 
         if (inputElement) {
-            store.handlers._viHandler(inputState, { target: inputElement } as unknown as GFormEvent);
+            store.handlers._viHandler(inputState, {target: inputElement} as unknown as GFormEvent);
         }
     }, [_validatorsDeps]);
 

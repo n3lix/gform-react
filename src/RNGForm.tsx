@@ -20,7 +20,7 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
         const flatFields = useFormSelector(state => state.fields) as FlatFields<T>;
 
         const formComponent = useMemo(() => {
-            const state = _buildRNFormState(flatFields, handlers);
+            const state = _buildRNFormState<T>(flatFields, handlers);
 
             if (stateRef) stateRef.current = state;
             const formChildren = typeof children === 'function' ? children(state) : children;
@@ -34,7 +34,7 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
 
         useEffect(() => {
             const initialStateFields = getState<T>().fields;
-            const state = _buildRNFormState(initialStateFields, handlers);
+            const state = _buildRNFormState<T>(initialStateFields, handlers);
 
             if (onInit) {
                 const changes = onInit(state);

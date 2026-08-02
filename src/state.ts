@@ -1,9 +1,11 @@
-import type {FlatFields, GDOMElement, GSection, IForm, PartialForm} from "./form";
+import type {FlatFields, GDOMElement, IForm, PartialForm, _IsSectionValue, _SectionRawData, _UnwrapFieldValue} from "./form";
 import type {GInputProps, GInputState, RNGInputProps} from "./fields";
 import {useFormHandlers} from "./useFormHandlers";
 
 export type RawData<T> = {
-    [key in keyof T]: T[key] extends GSection<infer F> ? F : T[key];
+    [key in keyof T]: _IsSectionValue<T[key]> extends true
+        ? _SectionRawData<NonNullable<T[key]>>
+        : _UnwrapFieldValue<T[key]>;
 };
 
 export type InitialState<T = any> = {
@@ -62,14 +64,14 @@ export type ToURLSearchParamsOptions<T> = {
      *   }
      * }
      *
-     * for a `GSection<...>` key, the function receives the whole section's raw data
-     * (`RawData<F>`) rather than a single field's value — sections are transformed as a unit,
-     * per-field transforms inside a section are not supported.
+     * for a section key (a plain-object key in the form interface), the function receives the
+     * whole section's raw data rather than a single field's value — sections are transformed as
+     * a unit, per-field transforms inside a section are not supported.
      */
     transform?: {
-        [key in keyof T]?: T[key] extends GSection<infer F>
-            ? (value: RawData<F>) => any
-            : (value: T[key]) => any;
+        [key in keyof T]?: _IsSectionValue<T[key]> extends true
+            ? (value: _SectionRawData<NonNullable<T[key]>>) => any
+            : (value: _UnwrapFieldValue<T[key]>) => any;
     };
 };
 
@@ -145,12 +147,14 @@ export type GFormState<T> = RNGFormState<T>
     };
 
 export type Store = {
-    getState: <T>() => InitialState<T>;
-    setState: <T>(updater: InitialState<T> | ((state: InitialState<T>) => InitialState<T>)) => void;
+    getState: <T = any>() => InitialState<T>;
+    setState: <T = any>(updater: InitialState<T> | ((state: InitialState<T>) => InitialState<T>)) => void;
     subscribe: (listener: () => void) => () => void;
+    notify: () => void;
     handlers: ReturnType<typeof useFormHandlers>;
     registerField: (config: GInputProps | RNGInputProps) => void;
     unregisterField: (formKey: string) => void;
     getInputElement: (formKey: string) => GDOMElement | undefined;
+    getSectionState: (sectionKey: string) => { [key: string]: GInputState<any> };
     optimized: boolean;
 }

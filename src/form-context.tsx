@@ -27,6 +27,8 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
     const stateRef = useRef(initialState);
     const listeners = useRef<Set<() => void>>(null);
 
+    const notify = useCallback(() => listeners.current!.forEach((listener) => listener()), []);
+
     const setState = useCallback((updater: InitialState | ((state: InitialState) => InitialState)) => {
         const prevState = stateRef.current;
         const nextState =
@@ -37,7 +39,7 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
         }
 
         stateRef.current = nextState;
-        listeners.current!.forEach((listener) => listener());
+        notify();
     }, []);
 
     const handlers = useFormHandlers(() => stateRef.current, setState, validators);
@@ -61,6 +63,20 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
                 console.warn(`DEV ONLY - [Duplicate Keys] - field with key '${key}' (formKey '${config.formKey}'${config.sectionKey ? ` in section '${config.sectionKey}'` : ''}) already defined.`);
             }
             return;
+        }
+
+        if (__DEV__) {
+            const collision = config.sectionKey ? config.sectionKey : config.formKey;
+            for (const existingKey in prev.fields) {
+                const existing = prev.fields[existingKey];
+                const collides = config.sectionKey
+                    ? (!existing.sectionKey && existing.formKey === collision)
+                    : (existing.sectionKey === collision);
+                if (collides) {
+                    console.warn(`DEV ONLY - [Section/Field Collision] - a top-level field and a section both use the key '${collision}'; 'state.${collision}' and 'toRawData().${collision}' cannot hold both (one overwrites the other). Rename the field or the section.`);
+                    break;
+                }
+            }
         }
 
         const inputState = _buildInputInitialValues(config as GInputInitialState);
@@ -128,10 +144,48 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
 
         // Notify listeners so other components (e.g. submit button) re-render
         // with the updated isValid/isInvalid state
-        listeners.current!.forEach(listener => listener());
+        notify();
+    }, []);
+
+    /**
+     * per-section snapshot cache, shared by every subscriber of the same section.
+     * one scan per store update per section, and all subscribers get the same object reference.
+     * entries are validated against the `fields` map's identity, so a cache hit is O(1)
+     * and a recompute reuses the previous snapshot when no member actually changed.
+     */
+    const sectionSnapshots = useRef<Map<string, {fields: InitialState['fields']; snapshot: {[key: string]: GInputState<any>}; size: number}>>(null);
+
+    const getSectionState = useCallback((sectionKey: string) => {
+        const fields = stateRef.current.fields;
+        let cache = sectionSnapshots.current!.get(sectionKey);
+
+        if (cache && cache.fields === fields) return cache.snapshot;
+
+        const next: { [key: string]: GInputState<any> } = {};
+        let size = 0;
+        let changed = false;
+        for (const key in fields) {
+            const field = fields[key];
+            if (field.sectionKey !== sectionKey) continue;
+            next[field.formKey] = field;
+            size++;
+            if (!cache || cache.snapshot[field.formKey] !== field) changed = true;
+        }
+
+        if (cache && !changed && size === cache.size) {
+            // no member changed — keep the previous reference so subscribers bail out
+            cache.fields = fields;
+            return cache.snapshot;
+        }
+
+        cache = {fields, snapshot: next, size};
+        sectionSnapshots.current!.set(sectionKey, cache);
+        return next;
     }, []);
 
     const store = useMemo<Store>(() => {
+        sectionSnapshots.current = new Map(); // drop stale snapshots when the store state resets
+
         if (!listeners.current) {
             listeners.current = new Set();
             stateRef.current = initialState;
@@ -161,10 +215,12 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
                 listeners.current!.add(listener);
                 return () => listeners.current!.delete(listener);
             },
+            notify,
             handlers,
             registerField,
             unregisterField,
             getInputElement,
+            getSectionState,
             optimized
         };
     }, [initialState, optimized]);

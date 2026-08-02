@@ -1,3 +1,41 @@
+## 3.5.0
+* **Sections (`sectionKey`)** - `GInput`/`RNGInput` accept an optional `sectionKey`, grouping the
+  field under a named section in the exposed state: `state[sectionKey][formKey]` instead of
+  `state[formKey]`. `formKey` only needs to be unique *within* its section, so the same formKey
+  (e.g. `email`, `zip`) can be reused across sections (billing/shipping addresses, repeated contact
+  blocks, …)
+* **Plain-object section typing** - a plain nested object key in the `GForm<T>` interface *is* a
+  section (`billing: { email: string; zip: string }`), `toRawData()`, and `dispatchChanges()`
+  are fully typed as nested with no wrapper type. `File`, `File[]`, `Blob`, `Date`, arrays, and
+  functions are always treated as field values; for the rare single field whose **value** is an
+  object, wrap its shape in the new exported `GFieldValue<...>` type to opt it out of section
+  detection
+* **New `useFormSectionSelector<F>(sectionKey)` hook** - subscribe a component to one whole
+  section; returns the section's fields keyed by bare `formKey` as a referentially-stable object
+  (re-renders only when a member field changes — including fields dynamically added to / removed
+  from the section). Exported `GSectionState<F>` types its return value
+* **Precise flat-state typing** - the internal flat fields map is now precisely typed for a typed
+  form: a sectioned field lives under its qualified key (`state.fields['billing.email']`), and a
+  bare section name or a typo'd key is a compile error. Annotate a `useFormSelector` selector with
+  the newly exported `InitialState<YourForm>` to opt in; custom validators (`fields` argument)
+  get the same precision
+* DEV-only warning when a top-level field and a section share the same name (they would silently
+  fight over one top-level key in the exposed state / `toRawData()`)
+* `toRawData()` / `toURLSearchParams()` nest sectioned fields under their `sectionKey`; `include`/
+  `exclude` target a whole section or a flat top-level key; a section's `transform` receives/returns
+  the whole section's raw data as one unit
+* A sectioned input's DOM `name` is `"sectionKey.formKey"`, so `toFormData()` and Server Actions
+  read it via `formData.get('sectionKey.formKey')`
+* Form-level `dispatchChanges` accepts a nested payload for sectioned fields (e.g.
+  `dispatchChanges({ billing: { email: {value} } }, { validate: true })`)
+* Validator lookup for a sectioned field no longer falls back to a validator keyed by the bare
+  `formKey`, preventing a rule meant for a top-level field from silently also applying to a
+  same-named sectioned field; share one rule across sections explicitly via a matching
+  `validatorKey`
+* `withSchema`/`withSchemaAsync` now route an issue by its full `path` (not just the first segment),
+  so a multi-segment path (e.g. `path: ['billing', 'email']`) correctly routes to a sectioned field;
+  behavior for a single-segment path is unchanged
+
 ## 3.4.1
 * When both `type` (`email`/`url`) and a stricter `pattern` are set on the same input and *both* are violated, `patternMismatch` now takes priority over `typeMismatch` for the reported violation/error message
 * Bug fix - `type="tel"` no longer triggers a `typeMismatch` violation. Native browsers don't validate `tel` format at all

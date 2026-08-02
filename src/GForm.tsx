@@ -29,10 +29,10 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
         ...rest
     }: FormRendererProps<T>, ref: ForwardedRef<HTMLFormElement>) => {
         const {handlers, getState, optimized} = useFormStore();
-        const flatFields = useFormSelector(state => state.fields) as FlatFields<T>;
+        const flatFields = useFormSelector(state => state.fields) as FlatFields;
 
         const formComponent = useMemo(() => {
-            const state = _buildFormState(flatFields, formRef.current!, handlers);
+            const state = _buildFormState<T>(flatFields, formRef.current!, handlers);
             const formChildren = typeof children === 'function' ? children(state) : children;
 
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -40,7 +40,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
                     e.preventDefault();
                     return;
                 }
-                const state = _buildFormState(getState<T>().fields, formRef.current!, handlers);
+                const state = _buildFormState<T>(getState<T>().fields, formRef.current!, handlers);
                 if (onSubmit) {
                     onSubmit(state, e);
                 }

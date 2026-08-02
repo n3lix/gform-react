@@ -7,7 +7,6 @@ import { GInput } from './fields/GInput';
 import { GValidator } from './validations';
 import type { GValidators } from './validations';
 import type { GFormState } from './state';
-import type { GSection } from './form';
 
 describe('GForm', () => {
     it('renders children correctly', () => {
@@ -1062,7 +1061,7 @@ describe('GForm submit-time validation gating (custom rules with no native const
 });
 
 describe('GForm sections (sectionKey)', () => {
-    type AddressForm = { email: string; billing: GSection<{ email: string; zip: string }>; shipping: GSection<{ email: string; zip: string }> };
+    type AddressForm = { email: string; billing: { email: string; zip: string }; shipping: { email: string; zip: string } };
 
     it('reuses the same formKey across sections independently, nested under state[sectionKey][formKey]', () => {
         let latest: GFormState<AddressForm> | undefined;
@@ -1223,5 +1222,143 @@ describe('GForm sections (sectionKey)', () => {
 
         expect(onSubmit).toHaveBeenCalledTimes(1);
         expect(onSubmit.mock.calls[0][0].billing.email.value).toBe('b@x.com');
+    });
+
+    it('editing one section\'s field does not re-render an unrelated section\'s field', () => {
+        // stable element references (module-level per test) so React.memo on GInput can bail out;
+        // static children (no render prop) so the elements aren't re-created per form render
+        const billingRenders = jest.fn();
+        const shippingRenders = jest.fn();
+        const billingElement = (_input: unknown, props: any) => {
+            billingRenders();
+            return <input {...props} data-testid="billing-email"/>;
+        };
+        const shippingElement = (_input: unknown, props: any) => {
+            shippingRenders();
+            return <input {...props} data-testid="shipping-email"/>;
+        };
+        render(
+            <GForm<AddressForm>>
+                <GInput formKey="email" sectionKey="billing" element={billingElement}/>
+                <GInput formKey="email" sectionKey="shipping" element={shippingElement}/>
+            </GForm>
+        );
+
+        const billingBefore = billingRenders.mock.calls.length;
+        const shippingBefore = shippingRenders.mock.calls.length;
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+
+        expect(billingRenders.mock.calls.length).toBeGreaterThan(billingBefore); // its own edit re-renders it
+        expect(shippingRenders.mock.calls.length).toBe(shippingBefore); // field-level selector contract
+    });
+
+    it('reusing the same formKey across sections triggers no duplicate-key warning', () => {
+        // jest.setup.js disables __DEV__; enable it here so the warning paths actually run
+        (globalThis as any).__DEV__ = true;
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        try {
+            render(
+                <GForm<AddressForm>>
+                    <GInput formKey="email" sectionKey="billing"/>
+                    <GInput formKey="email" sectionKey="shipping"/>
+                    <button type="submit">Submit</button>
+                </GForm>
+            );
+            expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('[Duplicate Keys]'));
+            expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('[Section/Field Collision]'));
+        } finally {
+            warn.mockRestore();
+            (globalThis as any).__DEV__ = false;
+        }
+    });
+
+    it('warns on a top-level-field/section name collision, in either mount order', () => {
+        (globalThis as any).__DEV__ = true;
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        try {
+            // flat field first, section second
+            const first = render(
+                <GForm>
+                    <GInput formKey="billing"/>
+                    <GInput formKey="street" sectionKey="billing"/>
+                </GForm>
+            );
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('[Section/Field Collision]'));
+            first.unmount();
+
+            warn.mockClear();
+
+            // section first, flat field second
+            render(
+                <GForm>
+                    <GInput formKey="street" sectionKey="billing"/>
+                    <GInput formKey="billing"/>
+                </GForm>
+            );
+            expect(warn).toHaveBeenCalledWith(expect.stringContaining('[Section/Field Collision]'));
+        } finally {
+            warn.mockRestore();
+            (globalThis as any).__DEV__ = false;
+        }
+    });
+
+    it('routes a multi-segment schema issue path to the sectioned field (integration)', async () => {
+        const schema = {
+            '~standard': {
+                version: 1 as const,
+                vendor: 'test',
+                validate: (v: any) =>
+                    v?.billing?.email?.includes('@')
+                        ? {value: v}
+                        : {issues: [{message: 'bad section email', path: ['billing', 'email']}]},
+            },
+        };
+        const validators: GValidators<AddressForm> = {'*': new GValidator().withSchema(schema as never)};
+        const withError = (testid: string) => (input: {error: boolean; errorText: string}, props: any) => (
+            <div>
+                <input {...props} data-testid={testid}/>
+                {input.error && <span data-testid={`${testid}-err`}>{input.errorText}</span>}
+            </div>
+        );
+        render(
+            <GForm<AddressForm> validators={validators}>
+                <GInput formKey="email" element={withError('top-email')}/>
+                <GInput formKey="email" sectionKey="billing" element={withError('billing-email')}/>
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'nope'}});
+        fireEvent.blur(screen.getByTestId('billing-email'));
+
+        expect(screen.getByTestId('billing-email-err')).toHaveTextContent('bad section email');
+        expect(screen.queryByTestId('top-email-err')).toBeNull(); // path routes to the section, not the bare formKey
+    });
+
+    it('toURLSearchParams handles sections via include/transform (delegates to toRawData)', () => {
+        let latest: GFormState<AddressForm> | undefined;
+        render(
+            <GForm<AddressForm>>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <>
+                            <GInput formKey="email" data-testid="email"/>
+                            <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+                        </>
+                    );
+                }}
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('email'), {target: {value: 'top@x.com'}});
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+
+        const params = latest!.toURLSearchParams({
+            include: ['billing'],
+            transform: {billing: (section) => JSON.stringify(section)},
+        });
+        expect(params.get('billing')).toBe(JSON.stringify({email: 'b@x.com'}));
+        expect(params.get('email')).toBeNull();
     });
 });

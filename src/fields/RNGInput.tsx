@@ -46,6 +46,8 @@ const _RNGInput = forwardRef<any, RNGInputProps>((props, ref) => {
         if (inputState.value) {
             store.handlers._validateInitialField(inputState, key, store.getInputElement(key));
         }
+
+        if (sectionKey) store.notify();
         return () => {
             if (__DEBUG__) {
                 console.log('[GInput] -', 'unregistering input', `(${key})`);
