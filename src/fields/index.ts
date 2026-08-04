@@ -8,6 +8,8 @@ export {RNGInput} from './RNGInput';
 export type BaseGenericFieldProps = {
     /** the key which is used to identify the input */
     formKey: string;
+    /** groups this input under a named section — see `forms.md` §3 (`state.<sectionKey>.<formKey>`) */
+    sectionKey?: string;
     /** refer to another input validator */
     validatorKey?: string;
     type?: HTMLInputTypeAttribute | undefined;

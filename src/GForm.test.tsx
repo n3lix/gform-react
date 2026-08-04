@@ -1,10 +1,11 @@
-import React from 'react';
+import React, {useState} from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { z } from 'zod';
 import * as yup from 'yup';
 import { GForm } from './GForm';
 import { GInput } from './fields/GInput';
 import { GValidator } from './validations';
+import { useFormSelector } from './hooks';
 import type { GValidators } from './validations';
 import type { GFormState } from './state';
 
@@ -541,6 +542,38 @@ describe('GForm native reset', () => {
         expect(state.name.value).toBe('');
     });
 
+    it('state.reset() restores fields and fires onReset, without a button type="reset"', () => {
+        const onReset = jest.fn();
+        let latest: GFormState<{ name: string }> | undefined;
+        render(
+            <GForm<{ name: string }> onReset={onReset}>
+                {(state) => {
+                    latest = state;
+                    return <GInput formKey="name" value="Ada" data-testid="name"/>;
+                }}
+            </GForm>
+        );
+
+        const name = screen.getByTestId('name') as HTMLInputElement;
+        fireEvent.change(name, {target: {value: 'Grace'}});
+        expect(name.value).toBe('Grace');
+
+        act(() => {
+            latest!.reset();
+        });
+
+        expect(name.value).toBe('Ada'); // back to its initial value, same as a native reset
+        expect(onReset).toHaveBeenCalledTimes(1);
+        const [state, e] = onReset.mock.calls[0];
+        expect(state.name.value).toBe('Ada');
+        // state.reset() dispatches a real DOM `reset` event rather than faking one — `e` is a
+        // genuine (if script-dispatched) event, honestly reporting isTrusted: false per the DOM
+        // spec, not a hand-built stand-in
+        expect(e.type).toBe('reset');
+        expect(e.isTrusted).toBe(true);
+        expect(e.defaultPrevented).toBe(true); // _resetAndNotify's preventDefault() suppressed the browser's own native reset
+    });
+
     it('uses onInit-seeded values as the reset baseline', () => {
         render(
             <GForm onInit={() => ({name: {value: 'Seeded'}})}>
@@ -1057,5 +1090,290 @@ describe('GForm submit-time validation gating (custom rules with no native const
         fireEvent.submit(screen.getByRole('button'));
         expect(onSubmit).not.toHaveBeenCalled();
         await waitFor(() => expect(screen.getByTestId('email-err')).toHaveTextContent('required'));
+    });
+});
+
+type CheckoutForm = {
+    couponCode: string;
+    billing: { email: string; zip: string };
+    shipping: { email: string; zip: string };
+};
+
+describe('sections (sectionKey)', () => {
+    it('registers same-named fields in different sections without collision, and nests toRawData()', () => {
+        let latest: GFormState<CheckoutForm> | undefined;
+        render(
+            <GForm<CheckoutForm>>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <>
+                            <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+                            <GInput formKey="zip" sectionKey="billing" data-testid="billing-zip"/>
+                            <GInput formKey="email" sectionKey="shipping" data-testid="shipping-email"/>
+                            <GInput formKey="zip" sectionKey="shipping" data-testid="shipping-zip"/>
+                            <GInput formKey="couponCode" data-testid="coupon"/>
+                        </>
+                    );
+                }}
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+        fireEvent.change(screen.getByTestId('shipping-email'), {target: {value: 's@x.com'}});
+
+        expect(latest!.toRawData()).toEqual({
+            couponCode: '',
+            billing: {email: 'b@x.com', zip: ''},
+            shipping: {email: 's@x.com', zip: ''},
+        });
+        // the two `email` fields are genuinely independent state (own gid), not aliased
+        expect(latest!.billing.email.gid).not.toBe(latest!.shipping.email.gid);
+    });
+
+    it('sid is stable across sibling-field updates within the same section', () => {
+        let latest: GFormState<CheckoutForm> | undefined;
+        render(
+            <GForm<CheckoutForm>>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <>
+                            <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+                            <GInput formKey="zip" sectionKey="billing" data-testid="billing-zip"/>
+                        </>
+                    );
+                }}
+            </GForm>
+        );
+
+        const sidBefore = latest!.billing.sid;
+        const zipFieldBefore = latest!.billing.zip;
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+
+        expect(latest!.billing.sid).toBe(sidBefore);
+        // the untouched sibling field's own reference survives the update too (structural sharing)
+        expect(latest!.billing.zip).toBe(zipFieldBefore);
+    });
+
+    it('a top-level formKey containing a literal dot does not collide with a differently-named section (regression)', () => {
+        let latest: GFormState<any> | undefined;
+        render(
+            <GForm<any>>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <>
+                            <GInput formKey="billing.email" data-testid="dotted-flat"/>
+                            <GInput formKey="email" sectionKey="billing" data-testid="section-email"/>
+                        </>
+                    );
+                }}
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('dotted-flat'), {target: {value: 'flat-value'}});
+        fireEvent.change(screen.getByTestId('section-email'), {target: {value: 'section-value'}});
+
+        expect(latest!.toRawData()).toEqual({
+            'billing.email': 'flat-value',
+            billing: {email: 'section-value'},
+        });
+    });
+
+    it('useFormSelector(state => state.fields.billing) re-renders only for its own section, not unrelated sections or fields', () => {
+        const billingRenderSpy = jest.fn();
+        const BillingWatcher = () => {
+            const billing = useFormSelector(state => state.fields.billing) as { email?: { value: string } } | undefined;
+            billingRenderSpy();
+            return <span data-testid="billing-watch">{billing?.email?.value ?? ''}</span>;
+        };
+
+        // static children (no render-prop) so GForm's own per-keystroke re-render doesn't recreate
+        // this element and mask the hook's own bail-out — see plan.md / progress.md.
+        render(
+            <GForm<CheckoutForm>>
+                <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+                <GInput formKey="email" sectionKey="shipping" data-testid="shipping-email"/>
+                <GInput formKey="couponCode" data-testid="coupon"/>
+                <BillingWatcher/>
+            </GForm>
+        );
+
+        const rendersAfterMount = billingRenderSpy.mock.calls.length;
+
+        fireEvent.change(screen.getByTestId('shipping-email'), {target: {value: 's@x.com'}});
+        fireEvent.change(screen.getByTestId('coupon'), {target: {value: 'SAVE10'}});
+        expect(billingRenderSpy).toHaveBeenCalledTimes(rendersAfterMount);
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+        expect(billingRenderSpy.mock.calls.length).toBeGreaterThan(rendersAfterMount);
+        expect(screen.getByTestId('billing-watch')).toHaveTextContent('b@x.com');
+    });
+
+    it('deletes the section container once its last field unregisters, and a re-mounted field gets a fresh sid', async () => {
+        let latestSid: string | undefined;
+        const Billing = ({show}: { show: boolean }) => {
+            const billing = useFormSelector(state => state.fields.billing) as { sid?: string } | undefined;
+            latestSid = billing?.sid;
+            return show ? <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/> : null;
+        };
+
+        const Harness = () => {
+            const [show, setShow] = useState(true);
+            return (
+                <GForm<CheckoutForm>>
+                    <Billing show={show}/>
+                    <button type="button" data-testid="toggle" onClick={() => setShow((s) => !s)}>toggle</button>
+                </GForm>
+            );
+        };
+
+        render(<Harness/>);
+        await waitFor(() => expect(latestSid).toBeDefined());
+        const firstSid = latestSid;
+
+        fireEvent.click(screen.getByTestId('toggle')); // unmount the only billing field
+        await waitFor(() => expect(latestSid).toBeUndefined());
+
+        fireEvent.click(screen.getByTestId('toggle')); // remount
+        await waitFor(() => expect(latestSid).toBeDefined());
+        expect(latestSid).not.toBe(firstSid);
+    });
+
+    it('form-level dispatchChanges accepts a nested payload for sectioned fields, with and without validate', () => {
+        const validators: GValidators<CheckoutForm> = {'billing.email': new GValidator().withRequiredMessage('required')};
+        let latest: GFormState<CheckoutForm> | undefined;
+        render(
+            <GForm<CheckoutForm> validators={validators}>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <>
+                            <GInput formKey="email" sectionKey="billing" required data-testid="billing-email"/>
+                            <GInput formKey="couponCode" data-testid="coupon"/>
+                        </>
+                    );
+                }}
+            </GForm>
+        );
+
+        act(() => {
+            latest!.dispatchChanges({billing: {email: {value: 'auto@x.com'}}});
+        });
+        // merge-only: the value updates, the field state is preserved (not clobbered by the partial)
+        expect(latest!.billing.email.value).toBe('auto@x.com');
+        expect(latest!.billing.email.gid).toBeTruthy();
+
+        act(() => {
+            latest!.billing.email.dispatchChanges({value: ''}, {validate: true});
+        });
+        expect(latest!.billing.email.error).toBe(true);
+
+        act(() => {
+            latest!.dispatchChanges({billing: {email: {value: 'again@x.com'}}}, {validate: true});
+        });
+        expect(latest!.billing.email.value).toBe('again@x.com');
+        expect(latest!.billing.email.error).toBe(false);
+    });
+
+    it('toFormData include/exclude match a section by its top-level key', () => {
+        let latest: GFormState<CheckoutForm> | undefined;
+        render(
+            <GForm<CheckoutForm>>
+                {(state) => {
+                    latest = state;
+                    return (
+                        <>
+                            <GInput formKey="email" sectionKey="billing" data-testid="billing-email"/>
+                            <GInput formKey="couponCode" data-testid="coupon"/>
+                        </>
+                    );
+                }}
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+        fireEvent.change(screen.getByTestId('coupon'), {target: {value: 'SAVE10'}});
+
+        const included = latest!.toFormData({include: ['billing']});
+        expect(included.get('billing.email')).toBe('b@x.com');
+        expect(included.get('couponCode')).toBeNull();
+
+        const excluded = latest!.toFormData({exclude: ['billing']});
+        expect(excluded.get('billing.email')).toBeNull();
+        expect(excluded.get('couponCode')).toBe('SAVE10');
+    });
+
+    it('withSchema routes a cross-field refine issue (path: ["billing", "email"]) to the sectioned field', () => {
+        const schema = z.object({
+            billing: z.object({email: z.string()}),
+            couponCode: z.string(),
+        }).refine((d) => d.billing.email.includes('@'), {message: 'must be a valid email', path: ['billing', 'email']});
+        const onSubmit = jest.fn();
+
+        render(
+            <GForm<CheckoutForm> validators={{'*': new GValidator().withSchema(schema)}} onSubmit={(s, e) => { e.preventDefault(); onSubmit(s); }}>
+                <GInput
+                    formKey="email"
+                    sectionKey="billing"
+                    element={(input, props) => (
+                        <>
+                            <input {...props} data-testid="billing-email"/>
+                            {input.error && <small data-testid="billing-email-error">{input.errorText}</small>}
+                        </>
+                    )}
+                />
+                <GInput formKey="couponCode" data-testid="coupon"/>
+                <button type="submit">Submit</button>
+            </GForm>
+        );
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'not-an-email'}});
+        fireEvent.submit(screen.getByRole('button'));
+
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(screen.getByTestId('billing-email-error')).toHaveTextContent('must be a valid email');
+
+        fireEvent.change(screen.getByTestId('billing-email'), {target: {value: 'b@x.com'}});
+        fireEvent.submit(screen.getByRole('button'));
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    describe('section/field key collision — dev warning', () => {
+        const original = (globalThis as any).__DEV__;
+        beforeEach(() => { (globalThis as any).__DEV__ = true; });
+        afterEach(() => { (globalThis as any).__DEV__ = original; jest.restoreAllMocks(); });
+
+        it('warns without dropping either registration, regardless of mount order', () => {
+            const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+            render(
+                <GForm>
+                    <GInput formKey="billing" data-testid="flat-billing"/>
+                    <GInput formKey="email" sectionKey="billing" data-testid="section-billing-email"/>
+                </GForm>
+            );
+
+            expect(warn.mock.calls.some((c) => String(c[0]).includes('Section/Field Collision'))).toBe(true);
+            expect(screen.getByTestId('flat-billing')).toBeInTheDocument();
+            expect(screen.getByTestId('section-billing-email')).toBeInTheDocument();
+        });
+
+        it('warns for the reverse mount order (section registers first)', () => {
+            const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+            render(
+                <GForm>
+                    <GInput formKey="email" sectionKey="billing" data-testid="section-billing-email"/>
+                    <GInput formKey="billing" data-testid="flat-billing"/>
+                </GForm>
+            );
+
+            expect(warn.mock.calls.some((c) => String(c[0]).includes('Section/Field Collision'))).toBe(true);
+            expect(screen.getByTestId('flat-billing')).toBeInTheDocument();
+            expect(screen.getByTestId('section-billing-email')).toBeInTheDocument();
+        });
     });
 });

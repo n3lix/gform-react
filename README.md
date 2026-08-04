@@ -37,6 +37,7 @@
 - **Custom Validations** – add custom validation with any rules
 - **Async Validations** — run asynchronous rules for server-side checks
 - **Cross-field validation** — re-validate a field when another changes (e.g. confirm-password) via `validatorDeps`
+- **Sections** — group fields into named, repeatable subgroups (billing/shipping addresses, N contacts…) via `sectionKey`, with the same re-render isolation as a flat field
 - **Deeply Nested Forms** — structure forms however you like, across any number of components
 - **Dynamic fields** — add or remove fields at runtime without losing state
 - **Native `<form>` actions** — fully supports browser‑level form submission, including action, method, and HTTP
@@ -186,6 +187,64 @@ const validators: GValidators<SignUpForm> = {
     '*': new GValidator().withSchemaAsync(schema),
 };
 ```
+
+## Sections (nested field groups)
+
+Group fields into a named section with `sectionKey`. useful for repeated field groups (billing /
+shipping addresses, N contacts…), not just cosmetic nesting. A section behaves like a flat field
+one level deeper: `state.<sectionKey>.<formKey>.value`, and `toRawData()` nests it automatically.
+`formKey` only needs to be unique *within* its section, so the same `email`/`zip` keys can be reused
+across sections without colliding.
+
+```tsx
+import {GForm, GInput, GValidator, useFormSelector, type GValidators, type InitialState} from "gform-react";
+
+interface CheckoutForm {
+    couponCode: string;
+    billing: { email: string; zip: string };
+    shipping: { email: string; zip: string };
+}
+
+const validators: GValidators<CheckoutForm> = {
+    '*': new GValidator().withRequiredMessage('required field'),
+};
+
+const renderField = (input, props) => (
+    <div><input {...props}/>{input.error && <small className="p-error">{input.errorText}</small>}</div>
+);
+
+// selecting a section works just like selecting a field — re-renders on a billing edit, not on
+// shipping/couponCode edits, same reference-stability guarantee, no separate hook needed
+const BillingPreview = () => {
+    const billing = useFormSelector((state: InitialState<CheckoutForm>) => state.fields.billing);
+    return <p>Shipping to: {billing?.email?.value}</p>;
+};
+
+const Checkout = () => (
+    <GForm<CheckoutForm> validators={validators}
+                         onSubmit={(state, e) => { e.preventDefault(); console.log(state.toRawData()); }}>
+        {/* { couponCode: '...', billing: { email, zip }, shipping: { email, zip } } */}
+        <fieldset>
+            <legend>Billing address</legend>
+            <GInput formKey="email" sectionKey="billing" required element={renderField}/>
+            <GInput formKey="zip" sectionKey="billing" required element={renderField}/>
+        </fieldset>
+
+        <fieldset>
+            <legend>Shipping address</legend>
+            <GInput formKey="email" sectionKey="shipping" required element={renderField}/>
+            <GInput formKey="zip" sectionKey="shipping" required element={renderField}/>
+        </fieldset>
+
+        <GInput formKey="couponCode" element={renderField}/>
+        <BillingPreview/>
+        <button type="submit">Submit</button>
+    </GForm>
+);
+```
+
+A schema's cross-field rule routes to a sectioned field with a multi-segment `path`:
+`.refine(fn, { path: ['billing', 'email'] })` targets `formKey="email"`, `sectionKey="billing"`.
 
 ## Installation
 

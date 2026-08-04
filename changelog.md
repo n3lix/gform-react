@@ -1,3 +1,11 @@
+## 3.5.0
+* **`sectionKey` on `GInput`/`RNGInput`** — group fields into named, repeatable sections (billing/shipping addresses etc...). `state.<sectionKey>.<formKey>` mirrors a flat field one level deeper; `formKey` only needs to be unique within its section (if there is any).
+* **`GValue<F>`** exported — opts a single field whose value is itself an object out of section detection (a plain-object interface key defaults to *section*)
+* Schema rules (`withSchema`/`withSchemaAsync`) route a multi-segment issue `path` (e.g. `.refine(fn, { path: ['billing', 'email'] })`) to a sectioned field
+* DEV-only warning when a top-level field name and a section name collide, in either mount order
+* **`state.reset()`** — restore every field to its initial value programmatically, without needing a `<button type="reset">`. On web this calls the form element's native `.reset()`, so it fires the same `reset` event (and `onReset`) a native reset does. Available on `GFormState` and `RNGFormState`
+* **`onReset` for `RNGFormState`** (React Native) — `RNGForm` now accepts `onReset`, mirroring the web contract; fires with the fresh post-reset state
+
 ## 3.4.1
 * When both `type` (`email`/`url`) and a stricter `pattern` are set on the same input and *both* are violated, `patternMismatch` now takes priority over `typeMismatch` for the reported violation/error message
 * Bug fix - `type="tel"` no longer triggers a `typeMismatch` violation. Native browsers don't validate `tel` format at all

@@ -1,4 +1,4 @@
-import {useMemo, useEffect, forwardRef} from "react";
+import React, {useMemo, useEffect, forwardRef} from "react";
 import type {ReactNode, FC, ReactElement, Ref, RefObject} from "react";
 
 import {_merge, _buildRNFormState} from "./helpers";
@@ -14,6 +14,7 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
         stateRef,
         children,
         onInit,
+        onReset,
         el: El,
         ...rest
     }: RNGFormProps<T>, ref: React.Ref<any>) => {
@@ -21,7 +22,7 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const formComponent = useMemo(() => {
-            const state = _buildRNFormState(fields, handlers);
+            const state = _buildRNFormState<T>(fields as unknown as IForm<any>, handlers, getState, onReset);
 
             if (stateRef) stateRef.current = state;
             const formChildren = typeof children === 'function' ? children(state) : children;
@@ -35,7 +36,7 @@ const FormRenderer = forwardRef<any, RNGFormProps<any>>(
 
         useEffect(() => {
             const initialStateFields = getState<T>().fields;
-            const state = _buildRNFormState(initialStateFields, handlers);
+            const state = _buildRNFormState<T>(initialStateFields as unknown as IForm<any>, handlers, getState, onReset);
 
             if (onInit) {
                 const changes = onInit(state);
@@ -67,6 +68,9 @@ export type RNGFormProps<T> = {
     validators?: GValidators<T>;
     /** @param onInit - execute a handler once the form has initialized (optional). */
     onInit?: (state: RNGFormState<T>) => void | PartialForm<T> | Promise<void | PartialForm<T>>;
+    /** @param onReset - runs after `state.reset()` restores every field to its initial value
+     * (optional). React Native has no native form reset, so this only ever fires programmatically. */
+    onReset?: (state: RNGFormState<T>) => void;
     /** @param el - the element to use as the form container. */
     el: FC<any>;
 };

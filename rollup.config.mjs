@@ -12,6 +12,18 @@ const build = process.env.build;
 const isProd = build === 'production';
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
 const env = isProd ? 'production' : 'development';
+const nameCache = {};
+
+function terserPlugin() {
+    return terser({
+        mangle: {
+            properties: {
+                regex: /^_/
+            }
+        },
+        nameCache
+    });
+}
 
 const esmEntries = {
     GForm: "src/GForm.tsx",
@@ -110,7 +122,7 @@ const cjs = {
     plugins: [
         ...basePlugins,
         babelConfig(false),
-        isProd && terser(),
+        isProd && terserPlugin(),
         createCjsEntryPlugin()
     ],
     external
@@ -128,7 +140,7 @@ const esm = {
     plugins: [
         ...basePlugins,
         babelConfig(true),
-        isProd && terser(),
+        isProd && terserPlugin(),
         copy({
             targets: [
                 {
@@ -156,7 +168,7 @@ const nativeCJS = {
     plugins: [
         ...basePlugins,
         babelConfig(false),
-        isProd && terser(),
+        isProd && terserPlugin(),
         createCjsEntryPlugin()
     ],
     external
@@ -174,7 +186,7 @@ const nativeESM = {
     plugins: [
         ...basePlugins,
         babelConfig(true),
-        isProd && terser(),
+        isProd && terserPlugin(),
         copy({
             targets: [
                 {

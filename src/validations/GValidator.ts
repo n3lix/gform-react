@@ -1,5 +1,6 @@
 import type { GConstraintValidator, GConstraintValidatorHandler, GCustomValidatorHandler, GCustomValidatorHandlerAsync } from ".";
 import type {GInputState} from "../fields";
+import type {IForm} from "../form";
 import {_depsReplacer, _toRawData} from "../helpers";
 import { _applySchemaResult } from "./schema";
 import type { StandardSchemaV1, StandardSchemaV1Result } from "./standardSchema";
@@ -183,7 +184,7 @@ export class GValidator<T = any> {
         }
 
         const handler: GCustomValidatorHandler<T> = (input, fields) => {
-            const values = _toRawData(fields);
+            const values = _toRawData(fields as unknown as IForm<any>);
             const sig = JSON.stringify(values, _depsReplacer);
 
             let result = sig === cacheSig ? cacheResult : undefined;
@@ -234,7 +235,7 @@ export class GValidator<T = any> {
         let cachePromise: Promise<StandardSchemaV1Result<unknown>> | undefined;
 
         const handler: GCustomValidatorHandlerAsync<T> = async (input, fields) => {
-            const values = _toRawData(fields);
+            const values = _toRawData(fields as unknown as IForm<any>);
             const sig = JSON.stringify(values, _depsReplacer);
 
             if (sig !== cacheSig || !cachePromise) {
