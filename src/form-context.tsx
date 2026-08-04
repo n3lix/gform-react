@@ -6,7 +6,7 @@ import type {InitialState, Store} from "./state";
 import type {GValidators} from "./validations";
 import type {GInputInitialState, GInputProps, GInputState, RNGInputProps} from './fields';
 import type {GDOMElement} from './form';
-import {_buildInputInitialValues, _clearDebounce} from "./helpers";
+import {_buildInputInitialValues, _clearDebounce, _deleteField, _getField, _isSection, _qualifyKey, _setField} from "./helpers";
 
 const GFormContext = createContext<Store>({} as Store);
 
@@ -54,19 +54,29 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
         /* mutate stateRef without notifying listeners
          it is safe because this field didn't exist (no component was subscribed to it) */
         const prev = stateRef.current;
+        const {formKey, sectionKey} = config;
 
-        if (prev.fields[config.formKey]) {
+        if (_getField(prev.fields, formKey, sectionKey)) {
             if (__DEV__) {
-                console.warn(`DEV ONLY - [Duplicate Keys] - field with key '${config.formKey}' already defined.`);
+                console.warn(`DEV ONLY - [Duplicate Keys] - field with key '${_qualifyKey(formKey, sectionKey)}' already defined.`);
             }
             return;
+        }
+
+        if (__DEV__) {
+            const collisionKey = sectionKey ?? formKey;
+            const existing = prev.fields[collisionKey];
+            const collides = sectionKey ? (existing && !_isSection(existing)) : (existing && _isSection(existing));
+            if (collides) {
+                console.warn(`DEV ONLY - [Section/Field Collision] - a top-level field and a section both use the key '${collisionKey}'; 'state.${collisionKey}' and 'toRawData().${collisionKey}' cannot hold both (one overwrites the other). Rename the field or the section.`);
+            }
         }
 
         const inputState = _buildInputInitialValues(config as GInputInitialState);
 
         inputState.checkValidity = () => {
-            const input = stateRef.current.fields[inputState.formKey] as GInputState<any>;
-            const el = getInputElement(inputState.formKey);
+            const input = _getField(stateRef.current.fields, formKey, sectionKey) as GInputState<any>;
+            const el = getInputElement(_qualifyKey(formKey, sectionKey));
             // read `validity.valid` (not `checkValidity()`) so the native check fires no `invalid`
             // event — validation runs through exactly one path: the explicit `_viHandler` below.
             if (el && !el.validity.valid) return false; // native first (RN skips)
@@ -93,36 +103,30 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
 
         stateRef.current = {
             ...prev,
-            fields: {
-                ...prev.fields,
-                [config.formKey]: {
-                    ...inputState,
-                    dispatchChanges: (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
-                        options?.validate
-                            ? handlers._dispatchAndValidate(changes, config.formKey)
-                            : handlers._dispatchChanges(changes, config.formKey)
-                }
-            }
+            fields: _setField(prev.fields, formKey, sectionKey, {
+                ...inputState,
+                dispatchChanges: (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
+                    options?.validate
+                        ? handlers._dispatchAndValidate(changes, formKey, sectionKey)
+                        : handlers._dispatchChanges(changes, formKey, sectionKey)
+            })
         };
         // No listeners.current.forEach() here - the subscribing component
         // will read the updated stateRef immediately via useSyncExternalStore
     }, [handlers]);
 
-    const unregisterField = useCallback((formKey: string) => {
+    const unregisterField = useCallback((formKey: string, sectionKey?: string) => {
         const prev = stateRef.current;
-        const removed = prev.fields[formKey];
+        const removed = _getField(prev.fields, formKey, sectionKey);
         if (!removed) return;
 
         // cancel & drop any pending debounce timers for this field so the timer map
         // doesn't grow unbounded (and to avoid a fetch firing after unmount)
         _clearDebounce(`${removed.gid}-fetch`, `${removed.gid}-async`);
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const {[formKey]: _, ...remainingFields} = prev.fields;
-
         stateRef.current = {
             ...prev,
-            fields: remainingFields
+            fields: _deleteField(prev.fields, formKey, sectionKey)
         };
 
         // Notify listeners so other components (e.g. submit button) re-render
@@ -131,26 +135,36 @@ export const GFormContextProvider: FC<GFormContextProviderProps> = ({
     }, []);
 
     const store = useMemo<Store>(() => {
+        const _bindDispatch = (fields: InitialState['fields']) => {
+            for (const key in fields) {
+                const entry = fields[key];
+                if (_isSection(entry)) {
+                    for (const formKey in entry) {
+                        if (formKey === 'sid') continue;
+                        (entry as any)[formKey].dispatchChanges = (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
+                            options?.validate
+                                ? handlers._dispatchAndValidate(changes, formKey, key)
+                                : handlers._dispatchChanges(changes, formKey, key);
+                    }
+                } else {
+                    (entry as GInputState<any>).dispatchChanges = (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
+                        options?.validate
+                            ? handlers._dispatchAndValidate(changes, key)
+                            : handlers._dispatchChanges(changes, key);
+                }
+            }
+        };
+
         if (!listeners.current) {
             listeners.current = new Set();
             stateRef.current = initialState;
-            for (const fieldKey in initialState.fields) {
-                initialState.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
-                    options?.validate
-                        ? handlers._dispatchAndValidate(changes, fieldKey)
-                        : handlers._dispatchChanges(changes, fieldKey);
-            }
+            _bindDispatch(initialState.fields);
         } else {
             if (__DEBUG__) {
                 console.log(`[form-context] - form changed state from`, stateRef.current, '\nto\n', initialState);
             }
             listeners.current.clear();
-            for (const fieldKey in stateRef.current.fields) {
-                stateRef.current.fields[fieldKey].dispatchChanges = (changes: Partial<GInputState>, options?: {validate?: boolean}) =>
-                    options?.validate
-                        ? handlers._dispatchAndValidate(changes, fieldKey)
-                        : handlers._dispatchChanges(changes, fieldKey);
-            }
+            _bindDispatch(stateRef.current.fields);
         }
 
         return {

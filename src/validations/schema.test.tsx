@@ -35,6 +35,18 @@ describe('_routeSchemaIssue', () => {
         expect(_routeSchemaIssue([issue('root', [])], 'email')).toBeUndefined();
         expect(_routeSchemaIssue([issue('root')], 'email')).toBeUndefined();
     });
+
+    it('joins a multi-segment path with "." to match a sectioned field\'s qualified key', () => {
+        const issues = [issue('bad', ['billing', 'email'])];
+        expect(_routeSchemaIssue(issues, 'billing.email')).toBe('bad');
+        // neither the section alone nor the bare formKey match a multi-segment path
+        expect(_routeSchemaIssue(issues, 'billing')).toBeUndefined();
+        expect(_routeSchemaIssue(issues, 'email')).toBeUndefined();
+    });
+
+    it('normalizes an object { key } segment within a multi-segment path', () => {
+        expect(_routeSchemaIssue([issue('bad', [{ key: 'billing' }, 'email'])], 'billing.email')).toBe('bad');
+    });
 });
 
 describe('_applySchemaResult', () => {
@@ -49,6 +61,13 @@ describe('_applySchemaResult', () => {
     it('routes a matching issue onto errorText and returns true', () => {
         const i = input('email');
         const result: StandardSchemaV1Result<unknown> = { issues: [issue('bad email', ['email'])] };
+        expect(_applySchemaResult(result, i)).toBe(true);
+        expect(i.errorText).toBe('bad email');
+    });
+
+    it('routes a matching issue onto a sectioned field via its qualified key', () => {
+        const i = { formKey: 'email', sectionKey: 'billing', errorText: '' } as GInputState<any>;
+        const result: StandardSchemaV1Result<unknown> = { issues: [issue('bad email', ['billing', 'email'])] };
         expect(_applySchemaResult(result, i)).toBe(true);
         expect(i.errorText).toBe('bad email');
     });

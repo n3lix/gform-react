@@ -1,4 +1,5 @@
 import type {GInputState} from '../fields';
+import {_fieldKey} from '../helpers';
 import type {StandardSchemaV1Issue, StandardSchemaV1Result} from './standardSchema';
 
 if (__DEV__) {
@@ -6,26 +7,29 @@ if (__DEV__) {
 }
 
 /**
- * Map a schema's issues to the message for a single field. Returns the first issue whose first path
- * segment matches `formKey` or `undefined` when no issue targets this field.
+ * Map a schema's issues to the message for a single field. Returns the first issue whose full path
+ * matches `targetKey` (a plain `formKey`, or `"sectionKey.formKey"` for a sectioned field — see
+ * `_fieldKey`) or `undefined` when no issue targets this field.
  *
  * Path segments may be primitives or `{ key }` objects (Standard Schema allows both); both are
- * normalized. A pathless (root) issue can't be mapped to a field and is skipped here — surfacing
- * that as a DEV warning is the caller's job (so it can warn once, not once per field).
+ * normalized and joined with `.`, so `.refine(fn, { path: ['billing', 'email'] })` routes to a
+ * field with `formKey="email"`, `sectionKey="billing"`, and a single-segment path behaves exactly
+ * as before for a non-sectioned field. A pathless (root) issue can't be mapped to a field and is
+ * skipped here — surfacing that as a DEV warning is the caller's job (so it can warn once, not
+ * once per field).
  */
-export const _routeSchemaIssue = (issues: ReadonlyArray<StandardSchemaV1Issue>, formKey: string): string | undefined => {
+export const _routeSchemaIssue = (issues: ReadonlyArray<StandardSchemaV1Issue>, targetKey: string): string | undefined => {
     for (const issue of issues) {
-        const segment = issue.path?.[0];
-        if (!segment) continue;
-        const key = typeof segment === 'object' ? segment.key : segment;
-        if (key === formKey) return issue.message;
+        if (!issue.path?.length) continue;
+        const path = issue.path.map(segment => (typeof segment === 'object' ? segment.key : segment)).join('.');
+        if (path === targetKey) return issue.message;
     }
 };
 
 export const _applySchemaResult = (result: StandardSchemaV1Result<unknown>, input: GInputState<any>): boolean => {
     if (!result.issues) return false;
 
-    const message = _routeSchemaIssue(result.issues, input.formKey);
+    const message = _routeSchemaIssue(result.issues, _fieldKey(input));
     if (message) {
         input.errorText = message;
         return true;

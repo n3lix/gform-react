@@ -1,4 +1,4 @@
-import {_checkResult, _debounce, _extractValue, _findValidityKey, _manualValidityKey} from "./helpers";
+import {_checkResult, _debounce, _extractValue, _fieldKey, _findValidityKey, _getField, _isSection, _manualValidityKey, _setField, _walkFields} from "./helpers";
 import {type GInputValidator, type GValidators} from "./validations";
 import type {GInputState} from "./fields";
 import type {GChangeEvent, GDOMElement, GFocusEvent, GFormEvent, GInvalidEvent} from "./form";
@@ -8,6 +8,8 @@ import {handlersMap, validityMap} from "./validations/GValidator";
 function _checkValidityFromError(this: GInputState<any>): boolean {
     return !this.error;
 }
+
+export type FormHandlers = ReturnType<typeof useFormHandlers>;
 
 export const useFormHandlers = (getState: Store['getState'], setState: Store['setState'], validators: GValidators = {}) => {
     /**
@@ -48,18 +50,18 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
             _checkInputManually(input);
         }
 
-        _dispatchChanges(input, input.formKey);
+        _dispatchChanges(input, input.formKey, input.sectionKey);
     };
 
     const _blurHandler = (input: GInputState<any>, e?: GFocusEvent<GDOMElement | HTMLFormElement> | GInvalidEvent<GDOMElement | HTMLFormElement> | GFormEvent<GDOMElement | HTMLFormElement> | GFormEvent): void => {
         if (!input) return;
 
-        const inputValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        const inputValidator = validators[input.validatorKey || _fieldKey(input)] || validators['*'];
         if (inputValidator) {
             if (inputValidator.asyncHandlers.length && input._validatedValue !== undefined && Object.is(input.value, input._validatedValue)) {
                 const wasTouched = input.touched;
                 input.touched = true;
-                if (!wasTouched) _dispatchChanges(input, input.formKey); // still propagate the one-time touched flip
+                if (!wasTouched) _dispatchChanges(input, input.formKey, input.sectionKey); // still propagate the one-time touched flip
                 return;
             }
             _viHandler(input, e);
@@ -73,7 +75,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         input.checkValidity = _checkValidityFromError;
         if (!input.touched) {
             input.touched = true;
-            _dispatchChanges(input, input.formKey);
+            _dispatchChanges(input, input.formKey, input.sectionKey);
         }
     };
 
@@ -101,7 +103,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         const validityKey = _manualValidityKey(input);
         if (!validityKey) return;
 
-        const inputValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        const inputValidator = validators[input.validatorKey || _fieldKey(input)] || validators['*'];
         if (!inputValidator) return;
 
         for (const index in inputValidator.constraintHandlers) {
@@ -131,15 +133,15 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
      * @param setValidity
      */
     const _validateInput = (input: GInputState, validityKey?: keyof ValidityState, setValidity?: (e: string) => void): void => {
-        const inputValidator = validators[input.validatorKey || input.formKey] || validators['*'];
+        const inputValidator = validators[input.validatorKey || _fieldKey(input)] || validators['*'];
         if (__DEBUG__) {
             console.log('[validateInput] -', 'validating input:', input.formKey, `(${validityKey ? validityKey : 'custom'})`);
         }
 
         if (__DEV__ && validityKey) {
             if (validityKey in validityMap && !inputValidator?.hasConstraint(validityKey)) {
-                console.warn(`DEV ONLY - [Missing Validator] - the input '${input.formKey}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().${handlersMap[validityMap[validityKey]]}(...),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
-                console.warn(`form submition is prevented due to violation(s) of input '${input.formKey}': violation '${validityKey}' caused by '${validityMap[validityKey]}' property.\n(<Ginput formKey={'${input.formKey}'} ${validityMap[validityKey]}={...} />)`);
+                console.warn(`DEV ONLY - [Missing Validator] - the input '${_fieldKey(input)}' has described the constraint '${validityMap[validityKey]}' however, a correspond validator is missing.\nadd '${handlersMap[validityMap[validityKey]]}' to the input validator.\nexample:\nconst validators: GValidators = {\n\temail: new GValidator().${handlersMap[validityMap[validityKey]]}(...),\n\t...\n}\n\nor either remove the constraint '${validityMap[validityKey]}' from the input props`);
+                console.warn(`form submition is prevented due to violation(s) of input '${_fieldKey(input)}': violation '${validityKey}' caused by '${validityMap[validityKey]}' property.\n(<Ginput formKey={'${input.formKey}'} ${validityMap[validityKey]}={...} />)`);
             }
         }
 
@@ -148,9 +150,10 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
     };
 
-    const _dispatchChanges = (changes: Partial<InitialState> | Partial<GInputState<any>>, key?: string) => setState(prev => {
-        if (key) {
-            return {...prev, fields: {...prev.fields, [key]: {...prev.fields[key], ...changes}}};
+    const _dispatchChanges = (changes: Partial<InitialState> | Partial<GInputState<any>>, formKey?: string, sectionKey?: string) => setState(prev => {
+        if (formKey) {
+            const current = _getField(prev.fields, formKey, sectionKey);
+            return {...prev, fields: _setField(prev.fields, formKey, sectionKey, {...current, ...changes} as GInputState<any>)};
         }
         return {...prev, ...changes};
     });
@@ -158,9 +161,9 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
     /**
      * Merge `changes` into a field, then re-run validation against the updated value.
      */
-    const _dispatchAndValidate = (changes: Partial<GInputState<any>>, key: string) => {
-        _dispatchChanges(changes, key);
-        const input = getState().fields[key];
+    const _dispatchAndValidate = (changes: Partial<GInputState<any>>, formKey: string, sectionKey?: string) => {
+        _dispatchChanges(changes, formKey, sectionKey);
+        const input = _getField(getState().fields, formKey, sectionKey);
         if (input) _viHandler(input);
     };
 
@@ -168,10 +171,21 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
      * Restore every field to the snapshot captured at registration
      */
     const _resetForm = (): void => setState(prev => {
-        const fields = {} as InitialState['fields'];
+        const fields: InitialState['fields'] = {};
+        const _restore = (field: GInputState<any>) => field._initial ? {...field, ...field._initial} : field;
+
         for (const key in prev.fields) {
-            const field = prev.fields[key];
-            fields[key] = field._initial ? {...field, ...field._initial} : field;
+            const entry = prev.fields[key];
+            if (_isSection(entry)) {
+                const section: { [k: string]: any } = {sid: (entry as any).sid};
+                for (const formKey in entry) {
+                    if (formKey === 'sid') continue;
+                    section[formKey] = _restore((entry as any)[formKey]);
+                }
+                fields[key] = section as unknown as GInputState<any>;
+            } else {
+                fields[key] = _restore(entry as GInputState<any>);
+            }
         }
         return {...prev, fields};
     });
@@ -180,14 +194,18 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
      * Re-capture the `_initial` snapshot for the given fields from their current state. Called after
      * `onInit` seeds values so that those seeded values — rather than the original `value` props —
      * become the baseline that a native reset restores to. Fields `onInit` doesn't touch keep the
-     * snapshot taken at registration.
+     * snapshot taken at registration. `keys` are qualified (`"billing.email"` for a sectioned
+     * field, `"couponCode"` otherwise) — see `_flattenChangeKeys`.
      */
     const _seedInitial = (keys: string[]): void => setState(prev => {
-        const fields = {...prev.fields};
+        let fields = prev.fields;
         for (const key of keys) {
-            const field = fields[key];
+            const dot = key.indexOf('.');
+            const formKey = dot === -1 ? key : key.slice(dot + 1);
+            const sectionKey = dot === -1 ? undefined : key.slice(0, dot);
+            const field = _getField(fields, formKey, sectionKey);
             if (!field) continue;
-            fields[key] = {
+            fields = _setField(fields, formKey, sectionKey, {
                 ...field,
                 _initial: {
                     value: field.value,
@@ -196,7 +214,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
                     touched: field.touched,
                     dirty: field.dirty,
                 },
-            };
+            });
         }
         return {...prev, fields};
     });
@@ -219,9 +237,8 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         const fields = getState().fields;
         let valid = true;
 
-        for (const key in fields) {
-            const input = fields[key];
-            const validator = validators[input.validatorKey || input.formKey] || validators['*'];
+        _walkFields(fields, (input) => {
+            const validator = validators[input.validatorKey || _fieldKey(input)] || validators['*'];
 
             /* rerun validation only where its needed but still track every field's error below.
             *  - no validator: nothing to run
@@ -239,12 +256,12 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
                 else _validateInput(input);
                 input.touched = true;
                 if (input.error !== before.error || input.errorText !== before.errorText || !before.touched) {
-                    _dispatchChanges(input, key);
+                    _dispatchChanges(input, input.formKey, input.sectionKey);
                 }
             }
 
             if (input.error) valid = false;
-        }
+        });
 
         return valid;
     };
@@ -267,7 +284,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
      *  If an element has a minimum allowed value length, its dirty value flag is true, its value was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and the length of the element's API value is less than the element's minimum allowed value length, then the element is suffering from being too short.
      *  @see https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
      */
-    const _validateInitialField = (input: GInputState<any>, key: string, element?: GDOMElement): void => {
+    const _validateInitialField = (input: GInputState<any>, element?: GDOMElement): void => {
         const before = {error: input.error, errorText: input.errorText};
         _checkInputManually(input);
 
@@ -276,7 +293,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
         }
 
         if (input.error !== before.error || input.errorText !== before.errorText) {
-            _dispatchChanges(input, key);
+            _dispatchChanges(input, input.formKey, input.sectionKey);
         }
     };
 
@@ -335,7 +352,7 @@ export const useFormHandlers = (getState: Store['getState'], setState: Store['se
                     }
                     if (!input.error) input.errorText = '';
 
-                    _dispatchChanges({error: input.error, errorText: input.errorText}, input.formKey);
+                    _dispatchChanges({error: input.error, errorText: input.errorText}, input.formKey, input.sectionKey);
                     if (setValidity) {
                         setValidity(input.errorText);
                     }

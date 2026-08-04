@@ -3,6 +3,7 @@ import Tabs, { Tab } from './tabs';
 import BaseExample from './base-example';
 import SchemaExample from './schema-example';
 import CustomValidationExample from './custom-validation-example';
+import SectionsExample from './sections-example';
 
 const App = () => (
     <div style={{ fontFamily: 'system-ui, sans-serif', padding: 24 }}>
@@ -13,7 +14,10 @@ const App = () => (
             <Tab index={1} header={<button type="button">Schema (Zod / Yup)</button>}>
                 <SchemaExample />
             </Tab>
-            <Tab index={2} header={<button type="button">Base</button>}>
+            <Tab index={2} header={<button type="button">Sections</button>}>
+                <SectionsExample />
+            </Tab>
+            <Tab index={3} header={<button type="button">Base</button>}>
                 <BaseExample />
             </Tab>
         </Tabs>

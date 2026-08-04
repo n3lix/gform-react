@@ -1,13 +1,15 @@
-import type {GDOMElement, IForm, PartialForm} from "./form";
+import type {GDOMElement, IForm, PartialForm, _IsSectionValue, _SectionRawData, _UnwrapFieldValue} from "./form";
 import type {GInputProps, GInputState, RNGInputProps} from "./fields";
 import {useFormHandlers} from "./useFormHandlers";
 
 export type RawData<T> = {
-    [key in keyof T]: T[key];
+    [key in keyof T]: _IsSectionValue<T[key]> extends true
+        ? _SectionRawData<NonNullable<T[key]>>
+        : _UnwrapFieldValue<T[key]>;
 };
 
 export type InitialState<T = any> = {
-    fields: IForm<T> & { [key: string]: GInputState<any> };
+    fields: IForm<T>;
 };
 
 /**
@@ -61,9 +63,15 @@ export type ToURLSearchParamsOptions<T> = {
      *     tags: (arr) => arr.join(","),
      *   }
      * }
+     *
+     * for a section key (a plain-object key in the form interface), the function receives the
+     * whole section's raw data rather than a single field's value — sections are transformed as
+     * a unit, per-field transforms inside a section are not supported.
      */
     transform?: {
-        [key in keyof T]?: (value: GFormState<T>[key]["value"]) => any;
+        [key in keyof T]?: _IsSectionValue<T[key]> extends true
+            ? (value: _SectionRawData<NonNullable<T[key]>>) => any
+            : (value: _UnwrapFieldValue<T[key]>) => any;
     };
 };
 
@@ -89,6 +97,12 @@ export type ToFormDataOptions<T> = ToURLSearchParamsOptions<T>;
 export type RNGFormState<T> = IForm<T>
     &
     {
+        /**
+         * restore every field to its initial value (the value it registered with, or the
+         * baseline `onInit` seeded — see `_seedInitial`), and fire `onReset` with the post-reset
+         * state. On web this is the same restore a native `<button type="reset">` triggers.
+         */
+        reset(): void;
         /**indicates whether the form is valid */
         isValid: boolean;
         /**indicates whether the form is invalid */
@@ -139,12 +153,12 @@ export type GFormState<T> = RNGFormState<T>
     };
 
 export type Store = {
-    getState: <T>() => InitialState<T>;
-    setState: <T>(updater: InitialState<T> | ((state: InitialState<T>) => InitialState<T>)) => void;
+    getState: <T = any>() => InitialState<T>;
+    setState: <T = any>(updater: InitialState<T> | ((state: InitialState<T>) => InitialState<T>)) => void;
     subscribe: (listener: () => void) => () => void;
     handlers: ReturnType<typeof useFormHandlers>;
     registerField: (config: GInputProps | RNGInputProps) => void;
-    unregisterField: (formKey: string) => void;
+    unregisterField: (formKey: string, sectionKey?: string) => void;
     getInputElement: (formKey: string) => GDOMElement | undefined;
     optimized: boolean;
 }

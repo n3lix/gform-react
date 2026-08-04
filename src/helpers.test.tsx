@@ -1,5 +1,6 @@
 import {_buildFormState, _buildRNFormState} from './helpers';
 import type {InitialState} from './state';
+import type {FormHandlers} from './useFormHandlers';
 
 describe('form-level dispatchChanges routing (web/RN parity)', () => {
     const makeFields = (): InitialState['fields'] =>
@@ -8,13 +9,27 @@ describe('form-level dispatchChanges routing (web/RN parity)', () => {
             age: {value: '', error: false},
         } as unknown as InitialState['fields']);
 
-    const handlersOf = (dc: any, dav: any) => ({_dispatchChanges: dc, _dispatchAndValidate: dav, _validateForm: jest.fn()});
+    // `FormHandlers` is the full `useFormHandlers()` return shape; only `_dispatchChanges`/
+    // `_dispatchAndValidate` are asserted on below, the rest are no-op stubs to satisfy the type.
+    const handlersOf = (dc: any, dav: any): FormHandlers => ({
+        _dispatchChanges: dc,
+        _dispatchAndValidate: dav,
+        _validateForm: jest.fn(),
+        _updateInputHandler: jest.fn(),
+        _viHandler: jest.fn(),
+        _blurHandler: jest.fn(),
+        _checkConstraints: jest.fn(),
+        _validateInitialField: jest.fn(),
+        _resetForm: jest.fn(),
+        _seedInitial: jest.fn(),
+        _createInputChecker: jest.fn(),
+    });
 
     const cases = [
         ['web (_buildFormState)', (f: InitialState['fields'], dc: any, dav: any) =>
             _buildFormState(f, {} as HTMLFormElement, handlersOf(dc, dav))] as const,
         ['RN (_buildRNFormState)', (f: InitialState['fields'], dc: any, dav: any) =>
-            _buildRNFormState(f, handlersOf(dc, dav))] as const,
+            _buildRNFormState(f, handlersOf(dc, dav), jest.fn())] as const,
     ];
 
     it.each(cases)('%s: with { validate: true } routes each changed field through dispatchAndValidate, no bulk merge', (_label, build) => {
@@ -75,7 +90,7 @@ describe('checkValidity runs the validators (not only native / not a field stub)
     it('RN: validates every field via _validateForm(true) and returns its result (no field stub)', () => {
         const validateForm = jest.fn(() => false); // full validation reports the form invalid
 
-        const state = _buildRNFormState(oneField(), handlersWith(validateForm));
+        const state = _buildRNFormState(oneField(), handlersWith(validateForm), jest.fn());
         const valid = state.checkValidity();
 
         expect(validateForm).toHaveBeenCalledWith(true);
@@ -84,7 +99,7 @@ describe('checkValidity runs the validators (not only native / not a field stub)
     });
 
     it('RN: returns true when validation passes', () => {
-        const state = _buildRNFormState(oneField(), handlersWith(jest.fn(() => true)));
+        const state = _buildRNFormState(oneField(), handlersWith(jest.fn(() => true)), jest.fn());
         expect(state.checkValidity()).toBe(true);
         expect(state.isInvalid).toBe(false);
     });

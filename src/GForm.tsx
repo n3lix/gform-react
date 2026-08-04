@@ -2,7 +2,7 @@ import React, {forwardRef, useEffect, useMemo, useRef} from "react";
 import type {ForwardedRef, Ref, ChangeEvent, ClipboardEvent, FormEvent, ReactNode, RefObject, DetailedHTMLProps, FormHTMLAttributes, KeyboardEvent} from "react";
 
 import {GFormContextProvider, useFormStore} from "./form-context";
-import {_merge, _hasSubmitter, _mergeRefs, _buildFormState} from "./helpers";
+import {_merge, _hasSubmitter, _mergeRefs, _buildFormState, _resolveField, _flattenChangeKeys} from "./helpers";
 import {useFormSelector} from "./hooks";
 import type {GFormState} from "./state";
 import type {GChangeEvent, IForm, PartialForm} from "./form";
@@ -33,24 +33,30 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
         const fields = useFormSelector(state => state.fields) as IForm<T>;
 
         const formComponent = useMemo(() => {
-            const state = _buildFormState(fields, formRef.current!, handlers);
+            const state = _buildFormState<T>(fields as unknown as IForm<any>, formRef.current!, handlers);
             const formChildren = typeof children === 'function' ? children(state) : children;
+
+            const getField = (name: string): GInputState<any> => _resolveField(fields as unknown as IForm<any>, name) as GInputState<any>;
 
             const _onSubmit = (e: FormEvent<HTMLFormElement>) => {
                 if (!handlers._validateForm()) {
                     e.preventDefault();
                     return;
                 }
-                const state = _buildFormState(getState<T>().fields, formRef.current!, handlers);
+                const state = _buildFormState<T>(getState<T>().fields as unknown as IForm<any>, formRef.current!, handlers);
                 if (onSubmit) {
                     onSubmit(state, e);
                 }
             };
 
-            const _onReset = (e: FormEvent<HTMLFormElement>) => {
+            const _resetAndNotify = (e: FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
                 handlers._resetForm();
-                if (onReset) onReset(state, e);
+                if (onReset) {
+                    // rebuild from fresh post-reset fields
+                    const freshState = _buildFormState<T>(getState<T>().fields as unknown as IForm<any>, formRef.current!, handlers);
+                    onReset(freshState, e);
+                }
             };
 
             let _onPaste, _onChange, _onKeyDown, _onKeyUp;
@@ -72,12 +78,12 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
             if (optimized) {
                 if (onChange) {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
-                        handlers._updateInputHandler(state[e.target.name as keyof T], e, unknown);
+                        handlers._updateInputHandler(getField(e.target.name), e, unknown);
                         onChange(state, e);
                     };
                 } else {
                     _onChange = (e: GChangeEvent<HTMLFormElement>, unknown?: { value: unknown } | string | number) => {
-                        handlers._updateInputHandler(state[e.target.name as keyof T], e, unknown);
+                        handlers._updateInputHandler(getField(e.target.name), e, unknown);
                     };
                 }
                 return (
@@ -86,14 +92,14 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
                         onPaste={_onPaste}
                         onKeyDown={_onKeyDown}
                         onKeyUp={_onKeyUp}
-                        onBlur={(e: GChangeEvent<HTMLFormElement>) => handlers._blurHandler(state[e.target.name as keyof T], e)}
+                        onBlur={(e: GChangeEvent<HTMLFormElement>) => handlers._blurHandler(getField(e.target.name), e)}
                         onInvalid={(e: ChangeEvent<HTMLFormElement>) => {
                             e.preventDefault(); // hide default browser validation tooltip
-                            handlers._viHandler(state[e.target.name as keyof T], e);
+                            handlers._viHandler(getField(e.target.name), e);
                         }}
                         onChange={_onChange}
                         onSubmit={_onSubmit}
-                        onReset={_onReset}>
+                        onReset={_resetAndNotify}>
                         {formChildren}
                     </form>
                 );
@@ -107,7 +113,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
                 <form {...rest}
                     ref={_mergeRefs(ref, formRef)}
                     onSubmit={_onSubmit}
-                    onReset={_onReset}
+                    onReset={_resetAndNotify}
                     onChange={_onChange}
                     onPaste={_onPaste}
                     onKeyDown={_onKeyDown}
@@ -119,7 +125,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
 
         useEffect(() => {
             const initialStateFields = getState<T>().fields;
-            const state = _buildFormState<T>(initialStateFields, formRef.current!, handlers);
+            const state = _buildFormState<T>(initialStateFields as unknown as IForm<any>, formRef.current!, handlers);
 
             if (__DEV__ && !warnedNoSubmitter && !_hasSubmitter(formRef.current)) {
                 warnedNoSubmitter = true;
@@ -140,7 +146,7 @@ const FormRenderer = forwardRef<HTMLFormElement, FormRendererProps<any>>(
                                 [key: string]: GInputState;
                             }>({}, state, _c)
                         });
-                        if (_c) handlers._seedInitial(Object.keys(_c));
+                        if (_c) handlers._seedInitial(_flattenChangeKeys(initialStateFields as unknown as IForm<any>, _c));
                     };
                     if (changes instanceof Promise) {
                         changes.then(_handler);
@@ -161,7 +167,10 @@ export type GFormProps<T> =
     stateRef?: RefObject<GFormState<T> | undefined>;
     /** @param onSubmit - a handler for the form submission (optional). */
     onSubmit?: (state: GFormState<T>, e: FormEvent<HTMLFormElement>) => void;
-    /** @param onReset - runs after a native form reset restores every field to its initial value (optional). */
+    /** @param onReset - runs after every field is restored to its initial value, whether triggered
+     * by a native form reset or a programmatic `state.reset()` call — the latter calls the form
+     * element's native `.reset()`, which fires the same `reset` event, so `e` is always present
+     * either way (optional). */
     onReset?: (state: GFormState<T>, e: FormEvent<HTMLFormElement>) => void;
     /** @param onChange - register onChange handler (optional). */
     onChange?: (state: GFormState<T>, e: FormEvent<HTMLFormElement>) => void;

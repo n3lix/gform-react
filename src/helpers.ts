@@ -1,13 +1,7 @@
 import type {GInputInitialState, GInputState} from './fields';
 import type {GChangeEvent, GDOMElement, IForm, PartialForm} from './form';
-import type {GFormState, InitialState, RawData, RNGFormState, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
-
-/** The subset of form handlers the form-state builders need (avoids importing `useFormHandlers`). */
-type FormHandlers = {
-    _dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void;
-    _dispatchAndValidate: (changes: Partial<GInputState<any>>, key: string) => void;
-    _validateForm: (full?: boolean) => boolean;
-};
+import type {GFormState, InitialState, RawData, RNGFormState, Store, ToFormDataOptions, ToRawDataOptions, ToURLSearchParamsOptions} from './state';
+import type {FormHandlers} from "./useFormHandlers";
 
 export const isObject = (o: any): o is object => (o && typeof o === 'object' && !Array.isArray(o));
 
@@ -23,7 +17,7 @@ const typeValueDict: { [key: string]: keyof HTMLFormElement | GDOMElement } = {
     number: 'valueAsNumber',
 };
 
-const _generateIdUnsafe = () => (+new Date()).toString(36) + (1 - Math.random()).toString(36).substring(2, 16);
+export const _generateIdUnsafe = () => (+new Date()).toString(36) + (1 - Math.random()).toString(36).substring(2, 16);
 
 export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputState<T> => {
     if (__DEBUG__) {
@@ -44,6 +38,7 @@ export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputSt
         checked,
         defaultChecked,
         formKey,
+        sectionKey,
         debounce,
         validatorKey
     } = input;
@@ -52,6 +47,7 @@ export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputSt
 
     return {
         formKey,
+        sectionKey,
         type,
         required,
         max,
@@ -75,6 +71,114 @@ export const _buildInputInitialValues = <T>(input: GInputInitialState): GInputSt
             return false;
         }
     };
+};
+
+/** qualifies a field's identity into the dotted addressing convention (`"billing.email"` for a
+ * sectioned field, plain `"email"` otherwise) used by validator lookup, `validatorDeps`/
+ * `fetchDeps`, the DOM `name` attribute, and schema `path` routing. Not used to key the internal
+ * `fields` tree itself — see `_getField`/`_setField`/`_deleteField` for that. */
+export const _qualifyKey = (formKey: string, sectionKey?: string): string =>
+    sectionKey ? `${sectionKey}.${formKey}` : formKey;
+
+export const _fieldKey = (input: Pick<GInputState<any>, 'formKey' | 'sectionKey'>): string =>
+    _qualifyKey(input.formKey, input.sectionKey);
+
+/** internal bookkeeping tag: a section container carries `sid` (generated the same way as a
+ * field's `gid`); a field never does. This is the single source of truth for telling the two
+ * apart in the tree — used by `useFormHandlers.ts` and `form-context.tsx` too. */
+export const _isSection = (entry: unknown): entry is { sid: string; [formKey: string]: any } =>
+    !!entry && typeof entry === 'object' && 'sid' in entry;
+
+export const _getField = (fields: IForm<any>, formKey: string, sectionKey?: string): GInputState<any> | undefined => {
+    if (!sectionKey) {
+        const entry = fields[formKey];
+        return _isSection(entry) ? undefined : (entry as GInputState<any> | undefined);
+    }
+    const section = fields[sectionKey];
+    return _isSection(section) ? section[formKey] : undefined;
+};
+
+/** same as `_getField`, but addressed by one qualified string (`"billing.email"` or `"email"") —
+ * for callers that only have the dotted addressing form (`validatorDeps`/`fetchDeps` entries, a
+ * DOM `name` attribute). */
+export const _resolveField = (fields: IForm<any>, key: string): GInputState<any> | undefined => {
+    const dot = key.indexOf('.');
+    return dot === -1 ? _getField(fields, key) : _getField(fields, key.slice(dot + 1), key.slice(0, dot));
+};
+
+export const _setField = (fields: IForm<any>, formKey: string, sectionKey: string | undefined, nextFieldState: GInputState<any>): IForm<any> => {
+    if (!sectionKey) {
+        return {...fields, [formKey]: nextFieldState};
+    }
+    // a colliding flat field's own properties (`value`, `gid`, …) are not section members —
+    // discard them rather than spreading them in as if they were formKey-keyed entries.
+    const existing = fields[sectionKey];
+    const prevSection = _isSection(existing) ? existing : undefined;
+    return {
+        ...fields,
+        [sectionKey]: {
+            ...prevSection,
+            sid: prevSection?.sid ?? _generateIdUnsafe(),
+            [formKey]: nextFieldState
+        }
+    } as unknown as IForm<any>;
+};
+
+export const _deleteField = (fields: IForm<any>, formKey: string, sectionKey?: string): IForm<any> => {
+    if (!sectionKey) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const {[formKey]: _removed, ...rest} = fields;
+        return rest;
+    }
+    const existing = fields[sectionKey];
+    const prevSection = _isSection(existing) ? existing : undefined;
+    if (!prevSection) return fields;
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {[formKey]: _removed, ...remaining} = prevSection;
+    const stillHasMembers = Object.keys(remaining).some(key => key !== 'sid');
+    if (!stillHasMembers) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const {[sectionKey]: _emptySection, ...restFields} = fields;
+        return restFields;
+    }
+    return {...fields, [sectionKey]: remaining} as unknown as IForm<any>;
+};
+
+/** visits every leaf `GInputState` in the tree, recursing one level into any section container.
+ * for operations that don't care about section grouping (validity checks, running validators).
+ * for operations that need to preserve/rebuild the section grouping (serialization), see
+ * `_rawValueOf` instead. */
+export const _walkFields = (fields: IForm<any>, visit: (field: GInputState<any>) => void): void => {
+    for (const key in fields) {
+        const entry = fields[key];
+        if (_isSection(entry)) {
+            for (const formKey in entry) {
+                if (formKey === 'sid') continue;
+                visit(entry[formKey]);
+            }
+        } else {
+            visit(entry as GInputState<any>);
+        }
+    }
+};
+
+/** resolves one top-level interface key's current "raw" value for serialization.
+ * the whole section's fields grouped into one object for a section key, or the plain field `.value`
+ * otherwise. Shared by `toRawData`/`toFormData`'s `include`/`transform` paths so they agree on what
+ * a section key's value looks like. */
+export const _rawValueOf = (fields: IForm<any>, key: string): unknown => {
+    const entry = fields[key];
+    if (!entry) return undefined;
+    if (_isSection(entry)) {
+        const section: { [formKey: string]: unknown } = {};
+        for (const formKey in entry) {
+            if (formKey === 'sid') continue;
+            section[formKey] = entry[formKey].value;
+        }
+        return section;
+    }
+    return (entry as GInputState<any>).value;
 };
 
 /**
@@ -130,34 +234,31 @@ export const _hasSubmitter = (form?: HTMLFormElement | null): boolean => {
     return false;
 };
 
-export const _checkIfFormIsValid = <T>(fields: IForm<T>): boolean => {
-    for (const f in fields) {
-        if (fields[f].error) {
-            return false;
-        }
-    }
-    return true;
+export const _checkIfFormIsValid = (fields: IForm<any>): boolean => {
+    let valid = true;
+    _walkFields(fields, (field) => {
+        if (field.error) valid = false;
+    });
+    return valid;
 };
 
-export const _toRawData = <T>(fields: IForm<T> & {
-    [key: string]: GInputState<any>
-}, options: ToRawDataOptions<T> = {}): RawData<T> => {
+export const _toRawData = <T>(fields: IForm<any>, options: ToRawDataOptions<T> = {}): RawData<T> => {
     const data: { [key: string]: unknown } = {};
 
     const {include, exclude, transform} = options;
 
     if (include) {
-        include.forEach(key => data[key as string] = fields[key]?.value);
+        include.forEach(key => data[key as string] = _rawValueOf(fields, key as string));
     } else for (const f in fields) {
-        data[f] = fields[f].value;
+        data[f] = _rawValueOf(fields, f);
     }
 
     exclude?.forEach(key => delete data[key as string]);
 
     if (transform) {
         for (const key in transform) {
-            const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-            data[key] = set(fields[key]?.value);
+            const set = transform[key] as (value: any) => any;
+            data[key] = set(_rawValueOf(fields, key));
         }
     }
 
@@ -166,28 +267,39 @@ export const _toRawData = <T>(fields: IForm<T> & {
 
 export const _toFormData = <T>(
     form: HTMLFormElement | null,
-    fields: IForm<T> & { [key: string]: GInputState<any> },
+    fields: IForm<any>,
     options?: ToFormDataOptions<T>,
 ): FormData => {
     if (!form) return new FormData();
 
     const {include, exclude, transform} = options ?? {};
 
+    // a DOM `name` is the qualified `"sectionKey.formKey"` string for a sectioned input, but
+    // `include`/`exclude` list top-level interface keys (`"billing"`, not `"billing.email"`) — so a
+    // sectioned entry's key also matches its section-name prefix.
+    const matchesKey = (domName: string, list: (keyof T)[]): boolean => {
+        const dot = domName.indexOf('.');
+        const section = dot === -1 ? undefined : domName.slice(0, dot);
+        return list.includes(domName as keyof T) || (section !== undefined && list.includes(section as keyof T));
+    };
+
     let formData: FormData = new FormData(form);
     if (include) {
         Array.from(formData.keys()).forEach(key => {
-            if (!include.includes(key as keyof T)) {
+            if (!matchesKey(key, include)) {
                 formData.delete(key);
             }
         });
     } else if (exclude) {
-        exclude.forEach(key => formData.delete(key as string));
+        Array.from(formData.keys()).forEach(key => {
+            if (matchesKey(key, exclude)) formData.delete(key);
+        });
     }
 
     if (transform) {
         for (const key in transform) {
-            const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-            formData.set(key, set(fields[key]?.value));
+            const set = transform[key] as (value: any) => any;
+            formData.set(key, set(_rawValueOf(fields, key)));
         }
     }
 
@@ -195,26 +307,8 @@ export const _toFormData = <T>(
 };
 
 export function _toURLSearchParams<T>(this: GFormState<T>, options?: ToURLSearchParamsOptions<T>): URLSearchParams {
-    let data: Record<keyof T, any>;
-    if (options) {
-        const {exclude, include, transform} = options;
-        if (include) {
-            data = {} as Record<keyof T, any>;
-            include.forEach(key => (data[key] = this[key]?.value));
-        } else {
-            data = this.toRawData();
-            exclude?.forEach(key => delete data[key]);
-        }
-
-        if (transform) {
-            for (const key in transform) {
-                const set = transform[key] as (value: GFormState<T>[typeof key]['value']) => any;
-                (data[key] = set(this[key]?.value));
-            }
-        }
-    } else data = this.toRawData();
-
-    return new URLSearchParams(data); // this is ok because URLSearchParams will stringify the values (boolean/number)
+    const data = this.toRawData(options);
+    return new URLSearchParams(data as Record<string, any>); // URLSearchParams stringifies values (boolean/number)
 }
 
 const _debounceTimers: { [key: string]: ReturnType<typeof setTimeout> } = {};
@@ -265,7 +359,18 @@ export const _merge = <T extends object>(target: { [key: string]: any } = {}, ..
     const next = nodes.shift();
     if (isObject(next)) {
         for (const key in next) {
-            target[key] = target[key] ? {...target[key], ...next[key]} : next[key];
+            const current = target[key];
+            if (_isSection(current)) {
+                // a section: merge each member field individually rather than replacing the
+                // whole container (which would drop the untouched members' gid/error/etc.)
+                const section = {...current};
+                for (const formKey in next[key]) {
+                    section[formKey] = isObject(section[formKey]) ? {...section[formKey], ...next[key][formKey]} : next[key][formKey];
+                }
+                target[key] = section;
+            } else {
+                target[key] = current ? {...current, ...next[key]} : next[key];
+            }
         }
     }
 
@@ -291,10 +396,10 @@ export const _mergeRefs = <T>(
     };
 };
 
-export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElement: HTMLFormElement, handlers: FormHandlers) => {
+export const _buildFormState = <T = any>(fields: IForm<any>, formElement: HTMLFormElement, handlers: FormHandlers): GFormState<T> => {
     const isFormValid = _checkIfFormIsValid(fields);
 
-    const formState: GFormState<T> = {
+    const formState = {
         ...fields,
         isValid: isFormValid,
         isInvalid: !isFormValid,
@@ -316,16 +421,17 @@ export const _buildFormState = <T>(fields: InitialState<T>['fields'], formElemen
         },
         dispatchChanges: (changes: PartialForm<T> & {
             [key: string]: Partial<GInputState<any>>
-        }, options?: { validate?: boolean }) => _formDispatch(fields, handlers._dispatchChanges, handlers._dispatchAndValidate, changes, options)
+        }, options?: { validate?: boolean }) => _formDispatch(fields, handlers._dispatchChanges, handlers._dispatchAndValidate, changes, options),
+        reset: () => formElement.reset()
     };
 
-    return formState;
+    return formState as unknown as GFormState<T>;
 };
 
-export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], handlers: FormHandlers) => {
+export const _buildRNFormState = <T = any>(fields: IForm<any>, handlers: FormHandlers, getState: Store['getState'], onReset?: (state: RNGFormState<T>) => void): RNGFormState<T> => {
     const isFormValid = _checkIfFormIsValid(fields);
 
-    const formState: RNGFormState<T> = {
+    const formState = {
         ...fields,
         isValid: isFormValid,
         isInvalid: !isFormValid,
@@ -339,22 +445,38 @@ export const _buildRNFormState = <T>(fields: InitialState<T>['fields'], handlers
         },
         dispatchChanges: (changes: PartialForm<T> & {
             [key: string]: Partial<GInputState<any>>
-        }, options?: { validate?: boolean }) => _formDispatch(fields, handlers._dispatchChanges, handlers._dispatchAndValidate, changes, options)
+        }, options?: { validate?: boolean }) => _formDispatch(fields, handlers._dispatchChanges, handlers._dispatchAndValidate, changes, options),
+        reset: () => {
+            handlers._resetForm();
+            if (onReset) {
+                // rebuild from fresh post-reset fields
+                const freshState = _buildRNFormState<T>(getState<T>().fields as unknown as IForm<any>, handlers, getState);
+                onReset(freshState);
+            }
+        }
     };
 
-    return formState;
+    return formState as unknown as RNGFormState<T>;
 };
 
 const _formDispatch = <T>(
-    fields: InitialState<T>['fields'],
-    dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, key?: string) => void,
-    dispatchAndValidate: (changes: Partial<GInputState<any>>, key: string) => void,
+    fields: IForm<any>,
+    dispatchChanges: (changes: Partial<InitialState> | Partial<GInputState>, formKey?: string, sectionKey?: string) => void,
+    dispatchAndValidate: (changes: Partial<GInputState<any>>, formKey: string, sectionKey?: string) => void,
     changes: PartialForm<T> & { [key: string]: Partial<GInputState<any>> },
     options?: { validate?: boolean }
 ): void => {
     if (options?.validate) {
         for (const key in changes) {
-            dispatchAndValidate(changes[key], key);
+            const entry = fields[key];
+            if (_isSection(entry)) {
+                const sectionChanges = changes[key] as unknown as { [formKey: string]: Partial<GInputState<any>> };
+                for (const formKey in sectionChanges) {
+                    dispatchAndValidate(sectionChanges[formKey], formKey, key);
+                }
+            } else {
+                dispatchAndValidate(changes[key] as Partial<GInputState<any>>, key);
+            }
         }
         return;
     }
@@ -396,8 +518,27 @@ export const _depsReplacer = (_key: string, value: unknown) => {
     return value;
 };
 
+/**
+ * flattens an `onInit`/`dispatchChanges({validate:false})`-shaped partial-changes object into the
+ * qualified key list `_seedInitial` expects (`"couponCode"`, `"billing.email"`). Section-ness is
+ * decided from the *current* `fields` tree (authoritative), not from the shape of `changes` — a
+ * section's partial-changes value (a map of formKey → partial field data) isn't otherwise
+ * distinguishable from a `GValue`-branded field's own partial field data.
+ */
+export const _flattenChangeKeys = (fields: IForm<any>, changes: { [key: string]: any }): string[] => {
+    const keys: string[] = [];
+    for (const key in changes) {
+        if (_isSection(fields[key])) {
+            for (const formKey in changes[key]) keys.push(_qualifyKey(formKey, key));
+        } else {
+            keys.push(key);
+        }
+    }
+    return keys;
+};
+
 export const _makeSelectFields = (keys: string[] = []) =>
     (state: InitialState): string | null => {
-        const selected = keys.map((key) => JSON.stringify(state.fields[key]?.value, _depsReplacer)).join(', ');
+        const selected = keys.map((key) => JSON.stringify(_resolveField(state.fields, key)?.value, _depsReplacer)).join(', ');
         return selected.length ? selected : null;
     };
